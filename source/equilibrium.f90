@@ -1148,6 +1148,7 @@ contains
         real(dp) :: sum_nj                        ! Total species amount used in convergence checks
         logical :: ion_species                    ! True if gas species is charged and ions are active
         logical :: hard_active                    ! Hard-threshold activity flag
+        real(dp) :: dnj_g(self%num_gas)           ! |𝛥nj_g| (eq. 3.4 linearization), gas analog of dnj_c
 
         ! Define shorthand
         ng = self%num_gas
@@ -1177,6 +1178,10 @@ contains
         h_g => soln%thermo%enthalpy(:ng)
         s_g => soln%thermo%entropy(:ng)
         s_c => soln%thermo%entropy(ng+1:)
+
+        ! |𝛥nj_g| does not depend on the element index i used in the
+        ! element-convergence loop below, so compute it once here.
+        dnj_g = nj_g*abs(dln_nj)
 
         ! Get the mixture pressure
         P = soln%calc_pressure()
@@ -1251,7 +1256,7 @@ contains
                 ! Also require the gas updates to be small relative to the
                 ! element they carry. A small post-update balance residual
                 ! alone can still leave step-dependent errors in minor species.
-                if (dot_product(abs(A_g(:, i)), nj_g*abs(dln_nj)) > nj_tol*b0(i)) then
+                if (dot_product(abs(A_g(:, i)), dnj_g) > nj_tol*b0(i)) then
                     soln%element_converged = .false.
                     return
                 end if
