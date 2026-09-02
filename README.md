@@ -62,6 +62,13 @@ installation process is as follows:
     cmake --build .
     cmake --install .
 
+**Windows:** the command above needs an explicit `-G` generator flag — with
+none given and no Visual Studio installed, CMake defaults to NMake Makefiles
+and fails before reaching the Fortran compiler. See the [Windows
+Notes](https://nasa.github.io/cea/installation.html#windows-notes) section of
+the full installation guide for a working Windows command line, including the
+Visual Studio and Intel oneAPI flows.
+
 This will build and install the `cea` executable, `libcea` library, default
 thermodynamic and transport property databases, documentation, and sample
 problems to the user-specified `cea_install_dir`.
