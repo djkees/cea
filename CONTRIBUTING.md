@@ -148,8 +148,7 @@ CEA uses pFUnit (part of the Goddard Fortran Ecosystem) for unit testing. Tests 
        -DSKIP_MPI=YES -DSKIP_OPENMP=YES -DSKIP_FHAMCREST=YES -DSKIP_ESMF=YES -DSKIP_ROBUST=YES
    cmake --build build-dev/extern/gfe --target install
    ```
-   `scripts/develop.sh` automates these steps (Linux/macOS only — see the
-   Windows note below).
+   `scripts/develop.sh` automates these steps.
 
 2. Configure CEA against that install and build (the `dev*` presets enable
    `CEA_BUILD_TESTING` by default):
@@ -160,13 +159,6 @@ CEA uses pFUnit (part of the Goddard Fortran Ecosystem) for unit testing. Tests 
    If you already have PFUnit installed separately instead of building the
    vendored copy above, set `PFUNIT_DIR` to its install prefix instead of
    `CMAKE_PREFIX_PATH`.
-
-> **Windows:** building the vendored pFUnit copy above currently fails
-> ([#163](https://github.com/djkees/cea/issues/163)) — pFUnit's own CMake
-> excludes a source file on Windows that another of its files depends on
-> unconditionally. Until that's resolved, `cea_core_test` (the pFUnit suite)
-> is effectively Linux/macOS-only; `cea_main_test` and `cea_bindc_*` are
-> unaffected.
 
 **Running all tests:**
 ```bash

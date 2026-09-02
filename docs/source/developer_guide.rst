@@ -148,7 +148,7 @@ whenever you modify solver behavior.
   Building this suite requires PFUnit, which is available via the vendored
   GFE dependency. See `CONTRIBUTING.md <../../CONTRIBUTING.md>`_'s "Running
   Tests" section for the full clone/build/install procedure
-  (``scripts/develop.sh`` automates it) and the current Windows limitation.
+  (``scripts/develop.sh`` automates it).
   If you already have PFUnit installed separately, set ``PFUNIT_DIR`` to its
   install prefix instead of building the vendored copy.
 
