@@ -64,10 +64,12 @@ installation process is as follows:
 
 **Windows:** the command above needs an explicit `-G` generator flag — with
 none given and no Visual Studio installed, CMake defaults to NMake Makefiles
-and fails before reaching the Fortran compiler. See the [Windows
-Notes](https://nasa.github.io/cea/installation.html#windows-notes) section of
-the full installation guide for a working Windows command line, including the
-Visual Studio and Intel oneAPI flows.
+and fails before reaching the Fortran compiler:
+
+    cmake -G "Visual Studio 17 2022" -DCMAKE_INSTALL_PREFIX=<cea_install_dir> -DCEA_BUILD_TESTING=OFF ..
+
+See the [Windows Notes](https://nasa.github.io/cea/installation.html#windows-notes)
+section of the full installation guide for Intel oneAPI and other options.
 
 This will build and install the `cea` executable, `libcea` library, default
 thermodynamic and transport property databases, documentation, and sample
