@@ -490,6 +490,19 @@ jobs:
           compiler: ${{ matrix.toolchain.fcompiler }}
           version: ${{ matrix.toolchain.fversion }}
 
+      - name: Fix stale CC/CXX=icx for oneAPI 2025.3.x (Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        run: |
+          # fortran-lang/setup-fortran hardcodes CC=CXX=icx, but oneAPI's
+          # Windows package no longer ships a plain icx.exe as of 2025.3.x --
+          # only icx-cc.exe (GCC-style driver) and icx-cl.exe (MSVC cl-style
+          # driver). This breaks GFE's own pFUnit subdirectory, which enables
+          # C language directly and can't resolve CC=icx at all. Use the
+          # GCC-style driver, matching the Unix-style flags GFE's and our
+          # own CMake configuration already assume.
+          echo "CC=icx-cc" >> "$GITHUB_ENV"
+          echo "CXX=icx-cc" >> "$GITHUB_ENV"
+
       - name: Set up Fortran compiler (macOS, gfortran)
         if: ${{ runner.os == 'macOS' && matrix.toolchain.fcompiler == 'gcc' }}
         run: |
