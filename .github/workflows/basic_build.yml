@@ -409,6 +409,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Check out GFE
+        if: ${{ runner.os != 'Windows' }}
         uses: actions/checkout@v6
         with:
           repository: Goddard-Fortran-Ecosystem/GFE
@@ -476,25 +477,16 @@ jobs:
           if [ -n "${FC}" ]; then "${FC}" --version; fi
 
       - name: Configure and Build GFE
+        if: ${{ runner.os != 'Windows' }}
         run: |
-          gfe_cmake_args=(
-            -DCMAKE_INSTALL_PREFIX=build/install
-            -DCMAKE_BUILD_TYPE=Release
-            -DSKIP_MPI=YES
-            -DSKIP_OPENMP=YES
-            -DSKIP_FHAMCREST=YES
-            -DSKIP_ESMF=YES
+          cmake -S extern/gfe -B build/extern/gfe -GNinja \
+            -DCMAKE_INSTALL_PREFIX=build/install \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSKIP_MPI=YES \
+            -DSKIP_OPENMP=YES \
+            -DSKIP_FHAMCREST=YES \
+            -DSKIP_ESMF=YES \
             -DSKIP_ROBUST=YES
-          )
-          if [ "${{ matrix.toolchain.fcompiler }}" = "gcc" ] && [ "${{ runner.os }}" = "Windows" ]; then
-            # gfortran's -cpp preprocessor doesn't predefine _WIN32 the way a
-            # C/C++ compiler does, so FUnit.F90's #ifndef _WIN32 guard around
-            # `use pf_RegexFilter` picks the wrong branch even though CMake's
-            # own WIN32 check already excluded that module from the build.
-            # See scripts/develop.sh for the same workaround.
-            gfe_cmake_args+=(-DCMAKE_Fortran_FLAGS=-D_WIN32)
-          fi
-          cmake -S extern/gfe -B build/extern/gfe -GNinja "${gfe_cmake_args[@]}"
           cmake --build build/extern/gfe --target install
 
       - name: Configure (Ninja)
@@ -506,10 +498,19 @@ jobs:
             cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-ffree-line-length-none")
           fi
 
+          # GFE/pFUnit is not built on Windows (see "Configure and Build GFE"
+          # above), so the Fortran unit test suite (cea_core_test) can't be
+          # registered there. The suite still runs on Linux/macOS; these
+          # Windows legs only exercise the C bindings.
+          cea_build_testing="ON"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cea_build_testing="OFF"
+          fi
+
           cmake -S . -B build -G Ninja \
             -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCEA_BUILD_TESTING=ON \
+            -DCEA_BUILD_TESTING="${cea_build_testing}" \
             -DCEA_ENABLE_BIND_C=ON \
             -DCEA_ENABLE_BIND_CXX=OFF \
             -DCEA_ENABLE_BIND_PYTHON=OFF \
@@ -520,10 +521,11 @@ jobs:
       - name: Configure (msvc)
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
         run: |
+          # GFE/pFUnit is not built on Windows, so cea_core_test can't be
+          # registered here either; see the "Configure (Ninja)" step above.
           cmake -S . -B build -G Ninja \
-            -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCEA_BUILD_TESTING=ON \
+            -DCEA_BUILD_TESTING=OFF \
             -DCEA_ENABLE_BIND_C=ON \
             -DCEA_ENABLE_BIND_CXX=OFF \
             -DCEA_ENABLE_BIND_PYTHON=OFF \
