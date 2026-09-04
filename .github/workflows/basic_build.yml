@@ -409,7 +409,6 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Check out GFE
-        if: ${{ runner.os != 'Windows' }}
         uses: actions/checkout@v6
         with:
           repository: Goddard-Fortran-Ecosystem/GFE
@@ -477,16 +476,25 @@ jobs:
           if [ -n "${FC}" ]; then "${FC}" --version; fi
 
       - name: Configure and Build GFE
-        if: ${{ runner.os != 'Windows' }}
         run: |
-          cmake -S extern/gfe -B build/extern/gfe -GNinja \
-            -DCMAKE_INSTALL_PREFIX=build/install \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DSKIP_MPI=YES \
-            -DSKIP_OPENMP=YES \
-            -DSKIP_FHAMCREST=YES \
-            -DSKIP_ESMF=YES \
+          gfe_cmake_args=(
+            -DCMAKE_INSTALL_PREFIX=build/install
+            -DCMAKE_BUILD_TYPE=Release
+            -DSKIP_MPI=YES
+            -DSKIP_OPENMP=YES
+            -DSKIP_FHAMCREST=YES
+            -DSKIP_ESMF=YES
             -DSKIP_ROBUST=YES
+          )
+          if [ "${{ matrix.toolchain.fcompiler }}" = "gcc" ] && [ "${{ runner.os }}" = "Windows" ]; then
+            # gfortran's -cpp preprocessor doesn't predefine _WIN32 the way a
+            # C/C++ compiler does, so FUnit.F90's #ifndef _WIN32 guard around
+            # `use pf_RegexFilter` picks the wrong branch even though CMake's
+            # own WIN32 check already excluded that module from the build.
+            # See scripts/develop.sh for the same workaround.
+            gfe_cmake_args+=(-DCMAKE_Fortran_FLAGS=-D_WIN32)
+          fi
+          cmake -S extern/gfe -B build/extern/gfe -GNinja "${gfe_cmake_args[@]}"
           cmake --build build/extern/gfe --target install
 
       - name: Configure (Ninja)
@@ -513,6 +521,7 @@ jobs:
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
         run: |
           cmake -S . -B build -G Ninja \
+            -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Release \
             -DCEA_BUILD_TESTING=ON \
             -DCEA_ENABLE_BIND_C=ON \
