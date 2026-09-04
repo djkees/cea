@@ -437,38 +437,40 @@ jobs:
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
         shell: python
         run: |
-          import re, pathlib
+          import pathlib
 
-          # yaFyaml/cmake/IntelLLVM.cmake works around an ifx 2025.2 FPP bug by
-          # routing preprocessing through an external "cpp"/clang-cpp binary. On
-          # Windows it does this via a generated .bat wrapper that forwards "%*"
-          # straight to clang-cpp; clang-cpp then drops the backslashes from the
-          # Windows source path it's handed ("D:\a\...\Tokens.F90" arrives as
-          # "D:a...Tokens.F90"), so every file fails with "no such file or
-          # directory". The wrapper was written without a Windows ifx system to
-          # test on (see GFE's own comment above it). Use ifx's native -fpp on
-          # Windows instead of this broken wrapper.
+          # yaFyaml/cmake/IntelLLVM.cmake works around a real ifx 2025.2 FPP bug
+          # (confirmed: using ifx's native -fpp directly produces bogus
+          # "#error: number of arguments doesn't match" in Lexer.F90) by routing
+          # preprocessing through an external "cpp"/clang-cpp binary. Its Windows
+          # .bat wrapper forwards "%*" straight through to that binary, which
+          # then drops the backslashes from the Windows source path it's handed
+          # ("D:\a\...\Tokens.F90" arrives as "D:a...Tokens.F90"), so every file
+          # fails with "no such file or directory". The wrapper was written
+          # without a Windows ifx system to test on (see GFE's own comment
+          # above it). Normalize backslashes to forward slashes in the
+          # wrapper's arguments before forwarding them, rather than bypassing
+          # the workaround (which just trades this failure for the underlying
+          # FPP bug it exists to avoid).
           path = pathlib.Path("extern/gfe/yaFyaml/cmake/IntelLLVM.cmake")
           text = path.read_text()
-          # Anchored on the comment right after the *inner* if(WIN32) (the one
-          # guarding the .bat-wrapper generation), not the unrelated if(WIN32)
-          # near the top of the file that sets no_optimize/check_all -- a
-          # pattern anchored on "if(WIN32)" alone matches that one first.
-          pattern = re.compile(
-              r'if\(WIN32\)\s*\n\s*# If you actually build on Windows with ifx.*?'
-              r'set\(cpp "-fpp-name=\$\{cpp_wrapper\}\.bat"\)\s*\n(\s*)else\(\)',
-              re.DOTALL,
+          old = (
+              '    file(WRITE "${cpp_wrapper}.bat"\n'
+              '"@echo off\\r\n'
+              '\\"${cpp_exe}\\" -P -traditional-cpp -undef %*\\r\n'
+              '")'
           )
-          replacement = (
-              'if(WIN32)\n'
-              "    # clang-cpp mangles Windows backslash paths; use ifx's native\n"
-              '    # -fpp instead of GFE\'s external-cpp wrapper here.\n'
-              '    set(cpp "-fpp")\n'
-              '  else()'
+          new = (
+              '    file(WRITE "${cpp_wrapper}.bat"\n'
+              '"@echo off\\r\n'
+              'set ARGS=%*\\r\n'
+              'set ARGS=%ARGS:\\\\=/%\\r\n'
+              '\\"${cpp_exe}\\" -P -traditional-cpp -undef %ARGS%\\r\n'
+              '")'
           )
-          new_text, count = pattern.subn(replacement, text)
+          count = text.count(old)
           assert count == 1, f"expected 1 match, got {count}"
-          path.write_text(new_text)
+          path.write_text(text.replace(old, new))
 
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
