@@ -394,13 +394,13 @@ jobs:
               ccompiler: msvc
               cversion: latest
               fcompiler: intel
-              fversion: "2025.3.2"
+              fversion: "2025.2.1"
           - os: windows-latest
             toolchain:
               ccompiler: intel
               cversion: "2025.2"
               fcompiler: intel
-              fversion: "2025.3.2"
+              fversion: "2025.2.1"
     defaults:
       run:
         shell: bash
@@ -490,19 +490,6 @@ jobs:
           compiler: ${{ matrix.toolchain.fcompiler }}
           version: ${{ matrix.toolchain.fversion }}
 
-      - name: Fix stale CC/CXX=icx for oneAPI 2025.3.x (Windows Intel)
-        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        run: |
-          # fortran-lang/setup-fortran hardcodes CC=CXX=icx, but oneAPI's
-          # Windows package no longer ships a plain icx.exe as of 2025.3.x --
-          # only icx-cc.exe (GCC-style driver) and icx-cl.exe (MSVC cl-style
-          # driver). This breaks GFE's own pFUnit subdirectory, which enables
-          # C language directly and can't resolve CC=icx at all. Use the
-          # GCC-style driver, matching the Unix-style flags GFE's and our
-          # own CMake configuration already assume.
-          echo "CC=icx-cc" >> "$GITHUB_ENV"
-          echo "CXX=icx-cc" >> "$GITHUB_ENV"
-
       - name: Set up Fortran compiler (macOS, gfortran)
         if: ${{ runner.os == 'macOS' && matrix.toolchain.fcompiler == 'gcc' }}
         run: |
@@ -577,18 +564,6 @@ jobs:
             -DSKIP_ROBUST=YES \
             "${gfe_cmake_flags[@]}"
           cmake --build build/extern/gfe --target install
-
-      - name: Debug - locate clang.exe (Windows Intel)
-        if: ${{ always() && runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        run: |
-          echo "--- full contents of oneAPI compiler bin dir ---"
-          ls -la "$ONEAPI_ROOT/compiler/latest/bin"
-          echo "--- search for clang*.exe under oneAPI root ---"
-          find "$ONEAPI_ROOT" -iname "clang*.exe" 2>&1
-          echo "--- Intel installer log files under user temp ---"
-          find /c/Users -maxdepth 6 -iname "*.log" -newermt "-2 hours" 2>/dev/null | grep -iv "npm\|pip\|vcpkg" || true
-          echo "--- grep those logs for cpp-dpcpp-common / error / fail ---"
-          find /c/Users -maxdepth 6 -iname "*.log" -newermt "-2 hours" 2>/dev/null | grep -iv "npm\|pip\|vcpkg" | xargs -I{} sh -c 'echo ">>> {}"; grep -i -E "cpp-dpcpp|error|fail|skip" "{}" | head -20' 2>/dev/null || true
 
       - name: Configure (Ninja)
         if: ${{runner.os != 'Windows' || matrix.toolchain.ccompiler != 'msvc'}}
