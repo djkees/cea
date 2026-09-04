@@ -585,6 +585,10 @@ jobs:
           ls -la "$ONEAPI_ROOT/compiler/latest/bin"
           echo "--- search for clang*.exe under oneAPI root ---"
           find "$ONEAPI_ROOT" -iname "clang*.exe" 2>&1
+          echo "--- Intel installer log files under user temp ---"
+          find /c/Users -maxdepth 6 -iname "*.log" -newermt "-2 hours" 2>/dev/null | grep -iv "npm\|pip\|vcpkg" || true
+          echo "--- grep those logs for cpp-dpcpp-common / error / fail ---"
+          find /c/Users -maxdepth 6 -iname "*.log" -newermt "-2 hours" 2>/dev/null | grep -iv "npm\|pip\|vcpkg" | xargs -I{} sh -c 'echo ">>> {}"; grep -i -E "cpp-dpcpp|error|fail|skip" "{}" | head -20' 2>/dev/null || true
 
       - name: Configure (Ninja)
         if: ${{runner.os != 'Windows' || matrix.toolchain.ccompiler != 'msvc'}}
