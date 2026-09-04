@@ -433,27 +433,32 @@ jobs:
             sed -i 's/^set(CMAKE_Fortran_FLAGS "-g /set(CMAKE_Fortran_FLAGS "-debug:full /' "$f"
           done
 
-      - name: Work around yaFyaml's Windows ifx 2025.2 FPP wrapper mangling paths (Windows Intel)
+      - name: Work around yaFyaml/pFlogger's Windows ifx 2025.2 FPP wrapper mangling paths (Windows Intel)
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
         shell: python
         run: |
           import pathlib
 
-          # yaFyaml/cmake/IntelLLVM.cmake works around a real ifx 2025.2 FPP bug
-          # (confirmed: using ifx's native -fpp directly produces bogus
-          # "#error: number of arguments doesn't match" in Lexer.F90) by routing
-          # preprocessing through an external "cpp"/clang-cpp binary. Its Windows
-          # .bat wrapper forwards "%*" straight through to that binary, which
-          # then drops the backslashes from the Windows source path it's handed
-          # ("D:\a\...\Tokens.F90" arrives as "D:a...Tokens.F90"), so every file
-          # fails with "no such file or directory". The wrapper was written
-          # without a Windows ifx system to test on (see GFE's own comment
-          # above it). Normalize backslashes to forward slashes in the
-          # wrapper's arguments before forwarding them, rather than bypassing
-          # the workaround (which just trades this failure for the underlying
-          # FPP bug it exists to avoid).
-          path = pathlib.Path("extern/gfe/yaFyaml/cmake/IntelLLVM.cmake")
-          text = path.read_text()
+          # yaFyaml's and pFlogger's cmake/IntelLLVM.cmake are identical here:
+          # both work around a real ifx 2025.2 FPP bug (confirmed: using ifx's
+          # native -fpp directly produces bogus "#error: number of arguments
+          # doesn't match" in Lexer.F90) by routing preprocessing through an
+          # external "cpp"/clang-cpp binary. Their Windows .bat wrapper
+          # forwards "%*" straight through to that binary, which then drops
+          # the backslashes from the Windows source path it's handed
+          # ("D:\a\...\Tokens.F90" arrives as "D:a...Tokens.F90"), so every
+          # file fails with "no such file or directory". The wrapper was
+          # written without a Windows ifx system to test on (see GFE's own
+          # comment above it). Normalize backslashes to forward slashes in
+          # the wrapper's arguments before forwarding them, rather than
+          # bypassing the workaround (which just trades this failure for the
+          # underlying FPP bug it exists to avoid).
+          #
+          # Both submodules are add_subdirectory()'d into the same top-level
+          # GFE build, so they share one CMAKE_BINARY_DIR and both write to
+          # the exact same "${CMAKE_BINARY_DIR}/tools/cpp_no_lines.bat" path
+          # -- patching only one leaves the other's unpatched file(WRITE)
+          # clobbering it later in the configure, so both need the fix.
           old = (
               '    file(WRITE "${cpp_wrapper}.bat"\n'
               '"@echo off\\r\n'
@@ -468,9 +473,15 @@ jobs:
               '\\"${cpp_exe}\\" -P -traditional-cpp -undef %ARGS%\\r\n'
               '")'
           )
-          count = text.count(old)
-          assert count == 1, f"expected 1 match, got {count}"
-          path.write_text(text.replace(old, new))
+          for rel in (
+              "extern/gfe/yaFyaml/cmake/IntelLLVM.cmake",
+              "extern/gfe/pFlogger/cmake/IntelLLVM.cmake",
+          ):
+              path = pathlib.Path(rel)
+              text = path.read_text()
+              count = text.count(old)
+              assert count == 1, f"{rel}: expected 1 match, got {count}"
+              path.write_text(text.replace(old, new))
 
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
