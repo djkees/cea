@@ -433,6 +433,38 @@ jobs:
             sed -i 's/^set(CMAKE_Fortran_FLAGS "-g /set(CMAKE_Fortran_FLAGS "-debug:full /' "$f"
           done
 
+      - name: Work around yaFyaml's Windows ifx 2025.2 FPP wrapper mangling paths (Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        shell: python
+        run: |
+          import re, pathlib
+
+          # yaFyaml/cmake/IntelLLVM.cmake works around an ifx 2025.2 FPP bug by
+          # routing preprocessing through an external "cpp"/clang-cpp binary. On
+          # Windows it does this via a generated .bat wrapper that forwards "%*"
+          # straight to clang-cpp; clang-cpp then drops the backslashes from the
+          # Windows source path it's handed ("D:\a\...\Tokens.F90" arrives as
+          # "D:a...Tokens.F90"), so every file fails with "no such file or
+          # directory". The wrapper was written without a Windows ifx system to
+          # test on (see GFE's own comment above it). Use ifx's native -fpp on
+          # Windows instead of this broken wrapper.
+          path = pathlib.Path("extern/gfe/yaFyaml/cmake/IntelLLVM.cmake")
+          text = path.read_text()
+          pattern = re.compile(
+              r'if\(WIN32\).*?set\(cpp "-fpp-name=\$\{cpp_wrapper\}\.bat"\)\s*\n(\s*)else\(\)',
+              re.DOTALL,
+          )
+          replacement = (
+              'if(WIN32)\n'
+              "    # clang-cpp mangles Windows backslash paths; use ifx's native\n"
+              '    # -fpp instead of GFE\'s external-cpp wrapper here.\n'
+              '    set(cpp "-fpp")\n'
+              '  else()'
+          )
+          new_text, count = pattern.subn(replacement, text)
+          assert count == 1, f"expected 1 match, got {count}"
+          path.write_text(new_text)
+
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
         uses: fortran-lang/setup-fortran@v1
