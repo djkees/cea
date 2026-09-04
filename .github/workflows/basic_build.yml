@@ -450,8 +450,13 @@ jobs:
           # Windows instead of this broken wrapper.
           path = pathlib.Path("extern/gfe/yaFyaml/cmake/IntelLLVM.cmake")
           text = path.read_text()
+          # Anchored on the comment right after the *inner* if(WIN32) (the one
+          # guarding the .bat-wrapper generation), not the unrelated if(WIN32)
+          # near the top of the file that sets no_optimize/check_all -- a
+          # pattern anchored on "if(WIN32)" alone matches that one first.
           pattern = re.compile(
-              r'if\(WIN32\).*?set\(cpp "-fpp-name=\$\{cpp_wrapper\}\.bat"\)\s*\n(\s*)else\(\)',
+              r'if\(WIN32\)\s*\n\s*# If you actually build on Windows with ifx.*?'
+              r'set\(cpp "-fpp-name=\$\{cpp_wrapper\}\.bat"\)\s*\n(\s*)else\(\)',
               re.DOTALL,
           )
           replacement = (
