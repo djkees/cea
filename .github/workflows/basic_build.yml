@@ -417,7 +417,7 @@ jobs:
 
       - name: Install m4 (Windows)
         if: ${{ runner.os == 'Windows' }}
-        run: choco install m4 -y
+        run: choco install gnuwin32-m4 -y
 
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
