@@ -555,7 +555,7 @@ jobs:
           cmake --build build/extern/gfe --target install
 
       - name: Debug - dump generated yaFyaml cpp wrapper (Windows Intel)
-        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        if: ${{ always() && runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
         run: |
           echo "--- patched source cmake/IntelLLVM.cmake ---"
           cat extern/gfe/yaFyaml/cmake/IntelLLVM.cmake
