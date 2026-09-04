@@ -394,13 +394,13 @@ jobs:
               ccompiler: msvc
               cversion: latest
               fcompiler: intel
-              fversion: "2025.2"
+              fversion: "2025.3.2"
           - os: windows-latest
             toolchain:
               ccompiler: intel
               cversion: "2025.2"
               fcompiler: intel
-              fversion: "2025.2"
+              fversion: "2025.3.2"
     defaults:
       run:
         shell: bash
