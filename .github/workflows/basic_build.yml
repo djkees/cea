@@ -578,18 +578,13 @@ jobs:
             "${gfe_cmake_flags[@]}"
           cmake --build build/extern/gfe --target install
 
-      - name: Debug - locate icx (Windows Intel)
+      - name: Debug - locate clang.exe (Windows Intel)
         if: ${{ always() && runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
         run: |
-          echo "--- CC / PATH ---"
-          echo "CC=${CC}"
-          echo "$PATH" | tr ':' '\n' | grep -i oneapi || true
-          echo "--- where icx ---"
-          where icx.exe || echo "icx.exe not found on PATH"
-          echo "--- contents of oneAPI compiler bin dir ---"
-          ls -la "$ONEAPI_ROOT/compiler/latest/bin" 2>&1 | grep -i "ic" || ls -la "$ONEAPI_ROOT/compiler/latest/bin"
-          echo "--- search for icx*.exe under oneAPI root ---"
-          find "$ONEAPI_ROOT" -iname "icx*.exe" 2>&1
+          echo "--- full contents of oneAPI compiler bin dir ---"
+          ls -la "$ONEAPI_ROOT/compiler/latest/bin"
+          echo "--- search for clang*.exe under oneAPI root ---"
+          find "$ONEAPI_ROOT" -iname "clang*.exe" 2>&1
 
       - name: Configure (Ninja)
         if: ${{runner.os != 'Windows' || matrix.toolchain.ccompiler != 'msvc'}}
