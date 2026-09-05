@@ -709,7 +709,7 @@ jobs:
           ; do
             echo "=== $f ==="
             if [ -f "$f" ]; then
-              dumpbin /directives "$f" 2>&1 | grep -i "defaultlib" | sort -u
+              dumpbin /directives "$f" 2>&1 | grep -i "defaultlib" | sort -u || true
             else
               echo "(not found)"
             fi
