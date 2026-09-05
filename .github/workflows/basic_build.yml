@@ -692,6 +692,29 @@ jobs:
         run: |
           cmake --build build
 
+      - name: DIAGNOSTIC - dumpbin default-lib directives (Windows Intel)
+        if: ${{ always() && runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        run: |
+          # -libs:dll didn't fix the "frexp already defined" link error, and
+          # libmmd.lib(libmmd.dll) in the error is already the DLL-runtime
+          # import lib -- suggesting this isn't the static/DLL mismatch it
+          # looked like. Check what runtime each vendored .lib actually
+          # embeds via its object directives before guessing further.
+          for f in \
+            build/install/PFUNIT-4.19/lib/funit.lib \
+            build/install/FARGPARSE-1.11/lib/fargparse.lib \
+            build/install/GFTL_SHARED-1.12/lib/gftl-shared-v2.lib \
+            build/install/GFTL_SHARED-1.12/lib/gftl-shared-v2-as-default.lib \
+            build/source/cea_core.lib \
+          ; do
+            echo "=== $f ==="
+            if [ -f "$f" ]; then
+              dumpbin /directives "$f" 2>&1 | grep -i "defaultlib" | sort -u
+            else
+              echo "(not found)"
+            fi
+          done
+
       - name: Run smoke test (Unix)
         if: runner.os != 'Windows'
         run: |
