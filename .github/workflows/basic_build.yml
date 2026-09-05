@@ -394,13 +394,13 @@ jobs:
               ccompiler: msvc
               cversion: latest
               fcompiler: intel
-              fversion: "2025.2.1"
+              fversion: "2025.3.2"
           - os: windows-latest
             toolchain:
               ccompiler: intel
               cversion: "2025.2"
               fcompiler: intel
-              fversion: "2025.2.1"
+              fversion: "2025.3.2"
     defaults:
       run:
         shell: bash
@@ -489,6 +489,44 @@ jobs:
         with:
           compiler: ${{ matrix.toolchain.fcompiler }}
           version: ${{ matrix.toolchain.fversion }}
+
+      - name: DIAGNOSTIC - retry oneAPI install with dpcpp-compiler component (Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        run: |
+          # oneAPI 2025.3.2's Windows package is missing clang.exe under
+          # compiler/latest/bin even though we request cpp-dpcpp-common (the
+          # same component ID that worked for older versions); icx-cc.exe
+          # can't find it. Test the hypothesis that a separate component now
+          # carries the actual compiler binary in 2025.3.x by re-invoking the
+          # installer setup-fortran already extracted (no need to re-download
+          # the 335MB installer). This is a one-off diagnostic, not meant to
+          # stay in the workflow long-term -- it relies on an internal,
+          # undocumented temp-file layout of fortran-lang/setup-fortran.
+          bootstrapper="$TEMP/webimage_extracted/bootstrapper.exe"
+          if [ ! -f "$bootstrapper" ]; then
+            echo "extracted bootstrapper not found at $bootstrapper; skipping diagnostic"
+          else
+            "$bootstrapper" -s --action install \
+              --components=intel.oneapi.win.dpcpp-compiler \
+              --eula=accept \
+              -p=NEED_VS2017_INTEGRATION=0 -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0 \
+              --log-dir="$TEMP/dpcpp-retry-log"
+            echo "--- retry install log dir ---"
+            find "$TEMP/dpcpp-retry-log" -type f 2>&1
+          fi
+          echo "--- does clang.exe exist now? ---"
+          find "$ONEAPI_ROOT" -iname "clang.exe" 2>&1
+
+      - name: Fix stale CC/CXX=icx for oneAPI 2025.3.x (Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        run: |
+          # fortran-lang/setup-fortran hardcodes CC=CXX=icx, but oneAPI's
+          # Windows package no longer ships a plain icx.exe as of 2025.3.x --
+          # only icx-cc.exe (GCC-style driver) and icx-cl.exe (MSVC cl-style
+          # driver). Use the GCC-style driver, matching the Unix-style flags
+          # GFE's and our own CMake configuration already assume.
+          echo "CC=icx-cc" >> "$GITHUB_ENV"
+          echo "CXX=icx-cc" >> "$GITHUB_ENV"
 
       - name: Set up Fortran compiler (macOS, gfortran)
         if: ${{ runner.os == 'macOS' && matrix.toolchain.fcompiler == 'gcc' }}
