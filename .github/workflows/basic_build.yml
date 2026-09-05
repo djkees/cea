@@ -604,6 +604,7 @@ jobs:
             cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-ffree-line-length-none")
           fi
           cmake_linker_flags=()
+          cmake_compiler_flags=()
           if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
             # Windows SDK 10.0.26100.0 + ifx both provide their own copy of
             # frexp/ldexp/etc. (Microsoft's libucrt.lib and Intel's own
@@ -616,6 +617,16 @@ jobs:
             # CEA's own build and GFE's vendored libraries, which didn't
             # resolve it. Tell the linker to tolerate the duplicate instead.
             cmake_linker_flags+=(-DCMAKE_EXE_LINKER_FLAGS="-Qoption,link,/FORCE:MULTIPLE")
+
+            # The oneAPI package this workflow installs for the "intel"
+            # fcompiler is a Fortran-only download with no working C/C++
+            # compiler backend (icx-cc.exe/icx-cl.exe have no clang.exe to
+            # drive -- see the "Configure and Build GFE" step for how this
+            # was confirmed). CEA's own documented, validated Windows+Intel
+            # workflow (scripts/install_windows_oneapi.ps1) already uses cl
+            # for C here, not icx, so this matches the project's own
+            # supported configuration rather than working around it.
+            cmake_compiler_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
           fi
 
           cmake -S . -B build -G Ninja \
@@ -628,6 +639,7 @@ jobs:
             -DCEA_ENABLE_BIND_MATLAB=OFF \
             -DCEA_ENABLE_BIND_EXCEL=OFF \
             "${cmake_fortran_flags[@]}" \
+            "${cmake_compiler_flags[@]}" \
             "${cmake_linker_flags[@]}"
 
       - name: Configure (msvc)
