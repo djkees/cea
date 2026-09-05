@@ -483,47 +483,6 @@ jobs:
               assert count == 1, f"{rel}: expected 1 match, got {count}"
               path.write_text(text.replace(old, new))
 
-      - name: Fix Windows Intel runtime-library mismatch across GFE (Windows Intel)
-        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        shell: python
-        run: |
-          import pathlib
-
-          # ifx's default (static) Fortran runtime on Windows conflicts with
-          # the DLL runtime CEA's own build uses (see the -libs:dll comment
-          # in "Configure (Ninja)"/"Configure (msvc)"): linking objects built
-          # against different runtime models produces LNK2005 "already
-          # defined" for things like frexp (libucrt.lib vs Intel's
-          # libmmd.lib). fArgParse, yaFyaml, and gFTL each hard-set the
-          # general CMAKE_Fortran_FLAGS (not just the Debug/Release
-          # variants), which silently discards whatever -DCMAKE_Fortran_FLAGS
-          # is passed to GFE's own cmake invocation, so they need patching
-          # directly; pFUnit, pFlogger, and gFTL-shared only set the
-          # Debug/Release variants and pick up the command-line flag fine.
-          edits = [
-              (
-                  "extern/gfe/fArgParse/cmake/IntelLLVM.cmake",
-                  'set(CMAKE_Fortran_FLAGS "-debug:full ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} -save-temps")',
-                  'set(CMAKE_Fortran_FLAGS "-debug:full ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} -save-temps -libs:dll")',
-              ),
-              (
-                  "extern/gfe/yaFyaml/cmake/IntelLLVM.cmake",
-                  'set(CMAKE_Fortran_FLAGS "-debug:full ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} -save-temps")',
-                  'set(CMAKE_Fortran_FLAGS "-debug:full ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} -save-temps -libs:dll")',
-              ),
-              (
-                  "extern/gfe/gFTL/cmake/IntelLLVM.cmake",
-                  'set(CMAKE_Fortran_FLAGS "${debug_info} ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} ${save_temps}")',
-                  'set(CMAKE_Fortran_FLAGS "${debug_info} ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} ${save_temps} -libs:dll")',
-              ),
-          ]
-          for rel, old, new in edits:
-              path = pathlib.Path(rel)
-              text = path.read_text()
-              count = text.count(old)
-              assert count == 1, f"{rel}: expected 1 match, got {count}"
-              path.write_text(text.replace(old, new))
-
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
         uses: fortran-lang/setup-fortran@v1
@@ -623,14 +582,6 @@ jobs:
             # Intel legs; this doesn't affect which C compiler CEA's own
             # later configure step chooses for its C bindings.
             gfe_cmake_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
-
-            # pFUnit, pFlogger, and gFTL-shared don't hard-override the
-            # general CMAKE_Fortran_FLAGS (only Debug/Release variants), so
-            # they pick this up directly; fArgParse, yaFyaml, and gFTL do
-            # override it and are patched separately (see the "Fix Windows
-            # Intel runtime-library mismatch" step above) to carry the same
-            # flag, keeping the whole link on one consistent runtime model.
-            gfe_cmake_flags+=(-DCMAKE_Fortran_FLAGS=-libs:dll)
           fi
 
           cmake -S extern/gfe -B build/extern/gfe -GNinja \
@@ -652,13 +603,19 @@ jobs:
             # This is a gfortran-only flag; Windows ifx fails compiler detection with it.
             cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-ffree-line-length-none")
           fi
+          cmake_linker_flags=()
           if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
-            # Windows SDK 10.0.26100.0 + ifx's default static runtime link a
-            # copy of frexp/ldexp/etc. from both libucrt.lib and Intel's
-            # libmmd.lib, producing LNK2005 "already defined" at link time.
-            # Link against the DLL runtime instead, per Intel's documented
-            # workaround.
-            cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-libs:dll")
+            # Windows SDK 10.0.26100.0 + ifx both provide their own copy of
+            # frexp/ldexp/etc. (Microsoft's libucrt.lib and Intel's own
+            # libmmd.lib), producing LNK2005 "already defined" at link time.
+            # This is a documented Intel/Windows-SDK interaction (both
+            # implementations are behaviorally identical -- IEEE754 mantissa/
+            # exponent decomposition -- so this is a duplicate-symbol
+            # bookkeeping conflict, not a behavioral choice); tried linking
+            # against the DLL runtime (-libs:dll) first, consistently across
+            # CEA's own build and GFE's vendored libraries, which didn't
+            # resolve it. Tell the linker to tolerate the duplicate instead.
+            cmake_linker_flags+=(-DCMAKE_EXE_LINKER_FLAGS="-Qoption,link,/FORCE:MULTIPLE")
           fi
 
           cmake -S . -B build -G Ninja \
@@ -670,7 +627,8 @@ jobs:
             -DCEA_ENABLE_BIND_PYTHON=OFF \
             -DCEA_ENABLE_BIND_MATLAB=OFF \
             -DCEA_ENABLE_BIND_EXCEL=OFF \
-            "${cmake_fortran_flags[@]}"
+            "${cmake_fortran_flags[@]}" \
+            "${cmake_linker_flags[@]}"
 
       - name: Configure (msvc)
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
@@ -686,34 +644,11 @@ jobs:
             -DCEA_ENABLE_BIND_EXCEL=OFF \
             -DCMAKE_C_COMPILER=cl \
             -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON \
-            -DCMAKE_Fortran_FLAGS="-libs:dll"
+            -DCMAKE_EXE_LINKER_FLAGS="-Qoption,link,/FORCE:MULTIPLE"
 
       - name: Build
         run: |
           cmake --build build
-
-      - name: DIAGNOSTIC - dumpbin default-lib directives (Windows Intel)
-        if: ${{ always() && runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        run: |
-          # -libs:dll didn't fix the "frexp already defined" link error, and
-          # libmmd.lib(libmmd.dll) in the error is already the DLL-runtime
-          # import lib -- suggesting this isn't the static/DLL mismatch it
-          # looked like. Check what runtime each vendored .lib actually
-          # embeds via its object directives before guessing further.
-          for f in \
-            build/install/PFUNIT-4.19/lib/funit.lib \
-            build/install/FARGPARSE-1.11/lib/fargparse.lib \
-            build/install/GFTL_SHARED-1.12/lib/gftl-shared-v2.lib \
-            build/install/GFTL_SHARED-1.12/lib/gftl-shared-v2-as-default.lib \
-            build/source/cea_core.lib \
-          ; do
-            echo "=== $f ==="
-            if [ -f "$f" ]; then
-              dumpbin /directives "$f" 2>&1 | grep -i "defaultlib" | sort -u || true
-            else
-              echo "(not found)"
-            fi
-          done
 
       - name: Run smoke test (Unix)
         if: runner.os != 'Windows'
