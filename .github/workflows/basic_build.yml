@@ -483,6 +483,47 @@ jobs:
               assert count == 1, f"{rel}: expected 1 match, got {count}"
               path.write_text(text.replace(old, new))
 
+      - name: Fix Windows Intel runtime-library mismatch across GFE (Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        shell: python
+        run: |
+          import pathlib
+
+          # ifx's default (static) Fortran runtime on Windows conflicts with
+          # the DLL runtime CEA's own build uses (see the -libs:dll comment
+          # in "Configure (Ninja)"/"Configure (msvc)"): linking objects built
+          # against different runtime models produces LNK2005 "already
+          # defined" for things like frexp (libucrt.lib vs Intel's
+          # libmmd.lib). fArgParse, yaFyaml, and gFTL each hard-set the
+          # general CMAKE_Fortran_FLAGS (not just the Debug/Release
+          # variants), which silently discards whatever -DCMAKE_Fortran_FLAGS
+          # is passed to GFE's own cmake invocation, so they need patching
+          # directly; pFUnit, pFlogger, and gFTL-shared only set the
+          # Debug/Release variants and pick up the command-line flag fine.
+          edits = [
+              (
+                  "extern/gfe/fArgParse/cmake/IntelLLVM.cmake",
+                  'set(CMAKE_Fortran_FLAGS "-debug:full ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} -save-temps")',
+                  'set(CMAKE_Fortran_FLAGS "-debug:full ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} -save-temps -libs:dll")',
+              ),
+              (
+                  "extern/gfe/yaFyaml/cmake/IntelLLVM.cmake",
+                  'set(CMAKE_Fortran_FLAGS "-debug:full ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} -save-temps")',
+                  'set(CMAKE_Fortran_FLAGS "-debug:full ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} -save-temps -libs:dll")',
+              ),
+              (
+                  "extern/gfe/gFTL/cmake/IntelLLVM.cmake",
+                  'set(CMAKE_Fortran_FLAGS "${debug_info} ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} ${save_temps}")',
+                  'set(CMAKE_Fortran_FLAGS "${debug_info} ${cpp} ${traceback} ${check_all} ${disable_warning_for_long_names} ${save_temps} -libs:dll")',
+              ),
+          ]
+          for rel, old, new in edits:
+              path = pathlib.Path(rel)
+              text = path.read_text()
+              count = text.count(old)
+              assert count == 1, f"{rel}: expected 1 match, got {count}"
+              path.write_text(text.replace(old, new))
+
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
         uses: fortran-lang/setup-fortran@v1
@@ -582,6 +623,14 @@ jobs:
             # Intel legs; this doesn't affect which C compiler CEA's own
             # later configure step chooses for its C bindings.
             gfe_cmake_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
+
+            # pFUnit, pFlogger, and gFTL-shared don't hard-override the
+            # general CMAKE_Fortran_FLAGS (only Debug/Release variants), so
+            # they pick this up directly; fArgParse, yaFyaml, and gFTL do
+            # override it and are patched separately (see the "Fix Windows
+            # Intel runtime-library mismatch" step above) to carry the same
+            # flag, keeping the whole link on one consistent runtime model.
+            gfe_cmake_flags+=(-DCMAKE_Fortran_FLAGS=-libs:dll)
           fi
 
           cmake -S extern/gfe -B build/extern/gfe -GNinja \
