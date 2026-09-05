@@ -603,6 +603,14 @@ jobs:
             # This is a gfortran-only flag; Windows ifx fails compiler detection with it.
             cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-ffree-line-length-none")
           fi
+          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
+            # Windows SDK 10.0.26100.0 + ifx's default static runtime link a
+            # copy of frexp/ldexp/etc. from both libucrt.lib and Intel's
+            # libmmd.lib, producing LNK2005 "already defined" at link time.
+            # Link against the DLL runtime instead, per Intel's documented
+            # workaround.
+            cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-libs:dll")
+          fi
 
           cmake -S . -B build -G Ninja \
             -DCMAKE_PREFIX_PATH=build/install \
@@ -628,7 +636,8 @@ jobs:
             -DCEA_ENABLE_BIND_MATLAB=OFF \
             -DCEA_ENABLE_BIND_EXCEL=OFF \
             -DCMAKE_C_COMPILER=cl \
-            -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON
+            -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON \
+            -DCMAKE_Fortran_FLAGS="-libs:dll"
 
       - name: Build
         run: |
