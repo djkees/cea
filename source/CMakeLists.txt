@@ -47,6 +47,25 @@ if(CEA_BUILD_TESTING AND PFUNIT_FOUND)
     set_tests_properties(cea_core_test PROPERTIES
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
+    if(WIN32 AND (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel"))
+        # Match cea's own Windows+Intel runtime-library handling below:
+        # force the static Intel Fortran runtime explicitly rather than
+        # relying on CMAKE_MSVC_RUNTIME_LIBRARY alone (see the comment on
+        # the `cea` target). Also works around a documented Windows SDK
+        # 10.0.26100.0 + ifx interaction where both libucrt.lib and Intel's
+        # libmmd.lib provide their own copy of frexp/ldexp/etc, producing
+        # LNK2005 "already defined" when linking pFUnit's vendored static
+        # libraries; both implementations are behaviorally identical
+        # (IEEE754 mantissa/exponent decomposition), so this is a
+        # duplicate-symbol bookkeeping conflict, not a behavioral choice.
+        # Scoped to this target only -- not the whole build via
+        # CMAKE_EXE_LINKER_FLAGS -- so a genuine future duplicate-symbol
+        # bug in cea itself or the C bindings still fails loudly.
+        target_link_options(cea_core_test PRIVATE
+            "-libs:static"
+            "-Qoption,link,/FORCE:MULTIPLE"
+        )
+    endif()
 elseif(CEA_BUILD_TESTING)
     message(WARNING
         "CEA_BUILD_TESTING is ON but pFUnit was not found (PFUNIT_FOUND is "
