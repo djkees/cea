@@ -391,14 +391,24 @@ jobs:
               fversion: "2021.9"
           - os: windows-latest
             toolchain:
+              # This is the only Windows+Intel leg left in the matrix.
+              # windows-latest/intel/intel used to be a separate entry
+              # testing icx as the C compiler, but oneAPI's Windows package
+              # for the "intel" fcompiler turns out to be a Fortran-only
+              # download with no working C/C++ compiler backend (icx-cc.exe/
+              # icx-cl.exe have no clang.exe to drive), so it silently
+              # compiled C with cl anyway -- identical to this entry in
+              # every way that matters. Getting a real icx working on
+              # Windows would need a much larger oneAPI Base Toolkit
+              # install, and wouldn't add meaningfully distinct coverage
+              # even then: ubuntu-22.04/intel/intel already exercises a
+              # genuinely working Intel C compiler, and icx's Windows ABI
+              # is Itanium/GCC-style, not the MSVC ABI ifx generates on
+              # Windows, so it was never going to interoperate with ifx the
+              # way this cl+ifx combination (matching CEA's own documented,
+              # validated scripts/install_windows_oneapi.ps1) does.
               ccompiler: msvc
               cversion: latest
-              fcompiler: intel
-              fversion: "2025.3.2"
-          - os: windows-latest
-            toolchain:
-              ccompiler: intel
-              cversion: "2025.2"
               fcompiler: intel
               fversion: "2025.3.2"
     defaults:
@@ -588,32 +598,6 @@ jobs:
             # This is a gfortran-only flag; Windows ifx fails compiler detection with it.
             cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-ffree-line-length-none")
           fi
-          cmake_linker_flags=()
-          cmake_compiler_flags=()
-          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
-            # Windows SDK 10.0.26100.0 + ifx both provide their own copy of
-            # frexp/ldexp/etc. (Microsoft's libucrt.lib and Intel's own
-            # libmmd.lib), producing LNK2005 "already defined" at link time.
-            # This is a documented Intel/Windows-SDK interaction (both
-            # implementations are behaviorally identical -- IEEE754 mantissa/
-            # exponent decomposition -- so this is a duplicate-symbol
-            # bookkeeping conflict, not a behavioral choice); tried linking
-            # against the DLL runtime (-libs:dll) first, consistently across
-            # CEA's own build and GFE's vendored libraries, which didn't
-            # resolve it. Tell the linker to tolerate the duplicate instead.
-            cmake_linker_flags+=(-DCMAKE_EXE_LINKER_FLAGS="-Qoption,link,/FORCE:MULTIPLE")
-
-            # The oneAPI package this workflow installs for the "intel"
-            # fcompiler is a Fortran-only download with no working C/C++
-            # compiler backend (icx-cc.exe/icx-cl.exe have no clang.exe to
-            # drive -- see the "Configure and Build GFE" step for how this
-            # was confirmed). CEA's own documented, validated Windows+Intel
-            # workflow (scripts/install_windows_oneapi.ps1) already uses cl
-            # for C here, not icx, so this matches the project's own
-            # supported configuration rather than working around it.
-            cmake_compiler_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
-          fi
-
           cmake -S . -B build -G Ninja \
             -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -623,9 +607,7 @@ jobs:
             -DCEA_ENABLE_BIND_PYTHON=OFF \
             -DCEA_ENABLE_BIND_MATLAB=OFF \
             -DCEA_ENABLE_BIND_EXCEL=OFF \
-            "${cmake_fortran_flags[@]}" \
-            "${cmake_compiler_flags[@]}" \
-            "${cmake_linker_flags[@]}"
+            "${cmake_fortran_flags[@]}"
 
       - name: Configure (msvc)
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
