@@ -429,20 +429,6 @@ jobs:
         if: ${{ runner.os == 'Windows' }}
         run: choco install gnuwin32-m4 -y
 
-      - name: Work around GFE unconditional -g flag on Windows ifx (Windows Intel)
-        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        run: |
-          # fArgParse's and yaFyaml's cmake/IntelLLVM.cmake set CMAKE_Fortran_FLAGS
-          # (applied to every build type, not just Debug) to a string starting
-          # with bare "-g ". Their sibling submodules (gFTL, gFTL-shared) already
-          # special-case WIN32 for this, but these two don't, and ifx's Windows
-          # driver rejects bare "-g" as an ambiguous prefix ("option '/g' is
-          # ambiguous") since several long-form flags also start with 'g'. Patch
-          # both files to use the unambiguous Windows debug-info flag instead.
-          for f in extern/gfe/fArgParse/cmake/IntelLLVM.cmake extern/gfe/yaFyaml/cmake/IntelLLVM.cmake; do
-            sed -i 's/^set(CMAKE_Fortran_FLAGS "-g /set(CMAKE_Fortran_FLAGS "-debug:full /' "$f"
-          done
-
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
         uses: fortran-lang/setup-fortran@v1
