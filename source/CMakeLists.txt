@@ -51,19 +51,19 @@ if(CEA_BUILD_TESTING AND PFUNIT_FOUND)
         # Match cea's own Windows+Intel runtime-library handling below:
         # force the static Intel Fortran runtime explicitly rather than
         # relying on CMAKE_MSVC_RUNTIME_LIBRARY alone (see the comment on
-        # the `cea` target). Also works around a documented Windows SDK
-        # 10.0.26100.0 + ifx interaction where both libucrt.lib and Intel's
-        # libmmd.lib provide their own copy of frexp/ldexp/etc, producing
-        # LNK2005 "already defined" when linking pFUnit's vendored static
-        # libraries; both implementations are behaviorally identical
-        # (IEEE754 mantissa/exponent decomposition), so this is a
-        # duplicate-symbol bookkeeping conflict, not a behavioral choice.
-        # Scoped to this target only -- not the whole build via
-        # CMAKE_EXE_LINKER_FLAGS -- so a genuine future duplicate-symbol
-        # bug in cea itself or the C bindings still fails loudly.
+        # the `cea` target). Without this, cea_core_test's runtime model
+        # didn't match pFUnit's vendored static libraries, and libucrt.lib
+        # and Intel's libmmd.lib each tried to supply their own copy of
+        # frexp/ldexp/etc at link time (LNK2005 "already defined").
+        #
+        # TESTING: previously also carried -Qoption,link,/FORCE:MULTIPLE
+        # (telling the linker to tolerate the duplicate rather than
+        # eliminating it). Remove temporarily to confirm -libs:static alone
+        # is sufficient -- CI showed zero LNK4006/duplicate-symbol warnings
+        # even with /FORCE:MULTIPLE active, suggesting it was never actually
+        # being exercised once this flag was added.
         target_link_options(cea_core_test PRIVATE
             "-libs:static"
-            "-Qoption,link,/FORCE:MULTIPLE"
         )
     endif()
 elseif(CEA_BUILD_TESTING)
