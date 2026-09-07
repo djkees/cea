@@ -409,6 +409,21 @@ jobs:
               # validated scripts/install_windows_oneapi.ps1) does.
               ccompiler: msvc
               cversion: latest
+              # fversion must stay >= 2025.3.0. Below that (confirmed on
+              # 2025.2.1), ifx's Windows response-file mechanism for passing
+              # arguments to an external preprocessor mangles Windows
+              # backslash paths -- a real Intel compiler bug (already fixed
+              # upstream in 2025.3.0), not something fixable from this repo:
+              # patching the wrapper it corrupts has no effect, since the
+              # corruption happens inside ifx itself before the wrapper ever
+              # runs. yaFyaml and pFlogger route around this exact bug for
+              # affected versions via an external-cpp workaround guarded by
+              # "VERSION_GREATER_EQUAL 2025.2 AND VERSION_LESS 2025.3" in
+              # their own cmake/IntelLLVM.cmake -- which is also why there's
+              # no patch for it left in this workflow: the guard already
+              # skips that workaround entirely for fversion >= 2025.3.0
+              # (confirmed: GFE's own diagnostic message for entering that
+              # workaround never appears in this leg's build log).
               fcompiler: intel
               fversion: "2025.3.2"
     defaults:
@@ -428,6 +443,25 @@ jobs:
       - name: Install m4 (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: choco install gnuwin32-m4 -y
+
+      - name: Enforce ifx version floor (Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        run: |
+          # Below ifx 2025.3.0 (confirmed on 2025.2.1), a real Intel compiler
+          # bug in ifx's Windows response-file mechanism mangles Windows
+          # backslash paths passed to an external preprocessor -- not
+          # something fixable from this repo (the corruption happens inside
+          # ifx itself, before anything we control ever runs). See the
+          # comment on this leg's fversion for the full explanation. A
+          # comment alone doesn't stop someone from lowering it, so enforce
+          # the floor here instead of just documenting it.
+          fver="${{ matrix.toolchain.fversion }}"
+          floor="2025.3.0"
+          lowest="$(printf '%s\n%s\n' "$fver" "$floor" | sort -V | head -1)"
+          if [ "$lowest" = "$fver" ] && [ "$fver" != "$floor" ]; then
+            echo "::error::fversion=$fver is below the required floor of $floor for this leg (see the comment on fversion in the matrix definition for why)." >&2
+            exit 1
+          fi
 
       - name: Work around GFE unconditional -g flag on Windows ifx (Windows Intel)
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
