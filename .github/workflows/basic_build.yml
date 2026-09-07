@@ -441,6 +441,14 @@ jobs:
           # both files to use the unambiguous Windows debug-info flag instead.
           for f in extern/gfe/fArgParse/cmake/IntelLLVM.cmake extern/gfe/yaFyaml/cmake/IntelLLVM.cmake; do
             sed -i 's/^set(CMAKE_Fortran_FLAGS "-g /set(CMAKE_Fortran_FLAGS "-debug:full /' "$f"
+            # sed doesn't fail on a zero-match no-op; verify the patch
+            # actually landed so an upstream reformat fails loudly here
+            # instead of surfacing later as an unrelated-looking "option
+            # '/g' is ambiguous" ifx error.
+            if ! grep -q '^set(CMAKE_Fortran_FLAGS "-debug:full ' "$f"; then
+              echo "::error::expected patch did not apply to $f -- upstream file format may have changed" >&2
+              exit 1
+            fi
           done
 
       - name: Set up Fortran compiler
