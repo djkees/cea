@@ -451,7 +451,7 @@ jobs:
             # instead of surfacing later as an unrelated-looking "option
             # '/g' is ambiguous" ifx error.
             if ! grep -q '^set(CMAKE_Fortran_FLAGS "-debug:full ' "$f"; then
-              echo "::error::expected patch did not apply to $f -- upstream file format may have changed" >&2
+              echo "::error::expected patch did not apply to $f -- either the upstream file format changed, or GFE fixed this natively upstream (in which case this workaround step can be removed)" >&2
               exit 1
             fi
           done
