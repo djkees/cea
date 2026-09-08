@@ -2709,13 +2709,15 @@ contains
         ! end do
         @assertLessThan(rel, tol)
 
-        ! write(*,*) "dU/dstate1: an=", totals%dU_dstate1, " fd=", totals%dU_dstate1_fd
+        rel = abs(totals%dU_dstate1_fd - totals%dU_dstate1) / max(abs(totals%dU_dstate1), 1.0d-30)
+        ! write(*,*) "dU/dstate1: an=", totals%dU_dstate1, " fd=", totals%dU_dstate1_fd, " rel=", rel
         ! write(*,*) "dU/dstate2: an=", totals%dU_dstate2, " fd=", totals%dU_dstate2_fd
         ! dU/dstate2 and dU/dw0 = 0 for uv (U is pinned to the input target
         ! regardless of V or w0); assert_constrained_energy_output_row checks
         ! those directly against an absolute floor rather than dividing by the
-        ! exact-zero analytic value, and also checks the dU/dstate1 = R/1e3
-        ! invariant shared by every energy-constrained solve.
+        ! exact-zero analytic value (a "rel" against zero would be meaningless),
+        ! and also checks the dU/dstate1 = R/1e3 invariant shared by every
+        ! energy-constrained solve.
         call assert_constrained_energy_output_row(totals, tol, tol_dU_dstate2)
 
         rel = abs(totals%dG_dstate1_fd - totals%dG_dstate1) / max(abs(totals%dG_dstate1), 1.0d-30)
@@ -2860,7 +2862,8 @@ contains
         end do
         @assertLessThan(rel, tol)
 
-        write(*,*) "dU/dstate1: an=", totals%dU_dstate1, " fd=", totals%dU_dstate1_fd
+        rel = abs(totals%dU_dstate1_fd - totals%dU_dstate1) / max(abs(totals%dU_dstate1), 1.0d-30)
+        write(*,*) "dU/dstate1: an=", totals%dU_dstate1, " fd=", totals%dU_dstate1_fd, " rel=", rel
         write(*,*) "dU/dstate2: an=", totals%dU_dstate2, " fd=", totals%dU_dstate2_fd
         do i = 1, solver%num_reactants
             write(*,*) "dU/dw0(", i, "): an=", totals%dU_dw0(i), " fd=", totals%dU_dw0_fd(i)
@@ -2868,8 +2871,9 @@ contains
         ! dU/dstate2 and dU/dw0 = 0 for uv (U is pinned to the input target
         ! regardless of V or w0); assert_constrained_energy_output_row checks
         ! those directly against an absolute floor rather than dividing by the
-        ! exact-zero analytic value, and also checks the dU/dstate1 = R/1e3
-        ! invariant shared by every energy-constrained solve.
+        ! exact-zero analytic value (a "rel" against zero would be meaningless),
+        ! and also checks the dU/dstate1 = R/1e3 invariant shared by every
+        ! energy-constrained solve.
         call assert_constrained_energy_output_row(totals, tol, tol_dU_dstate2)
 
         rel = abs(totals%dG_dstate1_fd - totals%dG_dstate1) / max(abs(totals%dG_dstate1), 1.0d-30)
