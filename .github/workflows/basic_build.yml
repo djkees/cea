@@ -391,39 +391,15 @@ jobs:
               fversion: "2021.9"
           - os: windows-latest
             toolchain:
-              # This is the only Windows+Intel leg left in the matrix.
-              # windows-latest/intel/intel used to be a separate entry
-              # testing icx as the C compiler, but oneAPI's Windows package
-              # for the "intel" fcompiler turns out to be a Fortran-only
-              # download with no working C/C++ compiler backend (icx-cc.exe/
-              # icx-cl.exe have no clang.exe to drive), so it silently
-              # compiled C with cl anyway -- identical to this entry in
-              # every way that matters. Getting a real icx working on
-              # Windows would need a much larger oneAPI Base Toolkit
-              # install, and wouldn't add meaningfully distinct coverage
-              # even then: ubuntu-22.04/intel/intel already exercises a
-              # genuinely working Intel C compiler, and icx's Windows ABI
-              # is Itanium/GCC-style, not the MSVC ABI ifx generates on
-              # Windows, so it was never going to interoperate with ifx the
-              # way this cl+ifx combination (matching CEA's own documented,
-              # validated scripts/install_windows_oneapi.ps1) does.
+              # Uses cl instead of icx: oneAPI's Windows package for the
+              # "intel" fcompiler has no working C/C++ compiler backend, and
+              # icx's Windows ABI (Itanium/GCC-style) wouldn't interoperate
+              # with ifx's MSVC ABI even if it did. Matches CEA's own
+              # documented scripts/install_windows_oneapi.ps1.
               ccompiler: msvc
               cversion: latest
-              # fversion must stay >= 2025.3.0. Below that (confirmed on
-              # 2025.2.1), ifx's Windows response-file mechanism for passing
-              # arguments to an external preprocessor mangles Windows
-              # backslash paths -- a real Intel compiler bug (already fixed
-              # upstream in 2025.3.0), not something fixable from this repo:
-              # patching the wrapper it corrupts has no effect, since the
-              # corruption happens inside ifx itself before the wrapper ever
-              # runs. yaFyaml and pFlogger route around this exact bug for
-              # affected versions via an external-cpp workaround guarded by
-              # "VERSION_GREATER_EQUAL 2025.2 AND VERSION_LESS 2025.3" in
-              # their own cmake/IntelLLVM.cmake -- which is also why there's
-              # no patch for it left in this workflow: the guard already
-              # skips that workaround entirely for fversion >= 2025.3.0
-              # (confirmed: GFE's own diagnostic message for entering that
-              # workaround never appears in this leg's build log).
+              # fversion must stay >= 2025.3.0 -- see "Enforce ifx version
+              # floor" step below.
               fcompiler: intel
               fversion: "2025.3.2"
     defaults:
@@ -448,13 +424,10 @@ jobs:
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
         run: |
           # Below ifx 2025.3.0 (confirmed on 2025.2.1), a real Intel compiler
-          # bug in ifx's Windows response-file mechanism mangles Windows
-          # backslash paths passed to an external preprocessor -- not
-          # something fixable from this repo (the corruption happens inside
-          # ifx itself, before anything we control ever runs). See the
-          # comment on this leg's fversion for the full explanation. A
-          # comment alone doesn't stop someone from lowering it, so enforce
-          # the floor here instead of just documenting it.
+          # bug in ifx's Windows response-file handling mangles backslash
+          # paths passed to an external preprocessor -- not fixable from
+          # this repo, so enforce the floor here rather than just
+          # documenting it.
           fver="${{ matrix.toolchain.fversion }}"
           floor="2025.3.0"
           lowest="$(printf '%s\n%s\n' "$fver" "$floor" | sort -V | head -1)"
@@ -466,13 +439,11 @@ jobs:
       - name: Work around GFE unconditional -g flag on Windows ifx (Windows Intel)
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
         run: |
-          # fArgParse's and yaFyaml's cmake/IntelLLVM.cmake set CMAKE_Fortran_FLAGS
-          # (applied to every build type, not just Debug) to a string starting
-          # with bare "-g ". Their sibling submodules (gFTL, gFTL-shared) already
-          # special-case WIN32 for this, but these two don't, and ifx's Windows
-          # driver rejects bare "-g" as an ambiguous prefix ("option '/g' is
-          # ambiguous") since several long-form flags also start with 'g'. Patch
-          # both files to use the unambiguous Windows debug-info flag instead.
+          # fArgParse's and yaFyaml's cmake/IntelLLVM.cmake set an
+          # unconditional bare "-g " CMAKE_Fortran_FLAGS; ifx's Windows
+          # driver rejects it as an ambiguous prefix (several long-form
+          # flags also start with 'g'). Their sibling gFTL/gFTL-shared
+          # already special-case WIN32 for this; patch these two to match.
           for f in extern/gfe/fArgParse/cmake/IntelLLVM.cmake extern/gfe/yaFyaml/cmake/IntelLLVM.cmake; do
             sed -i 's/^set(CMAKE_Fortran_FLAGS "-g /set(CMAKE_Fortran_FLAGS "-debug:full /' "$f"
             # sed doesn't fail on a zero-match no-op; verify the patch
@@ -549,17 +520,11 @@ jobs:
           fi
 
           if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
-            # pFUnit's own CMakeLists.txt enables C language directly. The
-            # oneAPI package this workflow installs for the "intel" fcompiler
-            # is a Fortran-only download (its icx-cc.exe has no clang.exe to
-            # drive -- confirmed, not just a missing PATH entry: there's no
-            # clang.exe anywhere under the install, and requesting an
-            # additional "dpcpp-compiler" component fails outright, since a
-            # full C/C++ compiler isn't part of this download at all). Point
-            # GFE's own internal C need at cl instead, which the "Set up
-            # MSVC toolchain" step already put on PATH; this doesn't affect
-            # which C compiler CEA's own later configure step chooses for
-            # its C bindings.
+            # pFUnit's own CMakeLists.txt enables C language directly, but
+            # this oneAPI package is Fortran-only (no clang.exe for
+            # icx-cc.exe to drive). Point GFE's own C need at cl instead,
+            # already on PATH from "Set up MSVC toolchain"; this doesn't
+            # affect CEA's own C compiler choice below.
             gfe_cmake_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
           fi
 

@@ -48,22 +48,14 @@ if(CEA_BUILD_TESTING AND PFUNIT_FOUND)
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
     if(WIN32 AND (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel"))
-        # Match cea's own Windows+Intel runtime-library handling below:
-        # force the static Intel Fortran runtime explicitly rather than
-        # relying on CMAKE_MSVC_RUNTIME_LIBRARY alone (see the comment on
-        # the `cea` target). Windows SDK 10.0.26100.0 + ifx both provide
-        # their own copy of frexp/ldexp/etc (libucrt.lib and Intel's
-        # libmmd.lib), producing LNK2005 "already defined" at link time --
-        # a documented Intel/Windows-SDK interaction; both implementations
-        # are behaviorally identical (IEEE754 mantissa/exponent
-        # decomposition), so this is a duplicate-symbol bookkeeping
-        # conflict, not a behavioral choice. -libs:static alone is not
-        # sufficient to avoid it (confirmed: removing /FORCE:MULTIPLE while
-        # keeping -libs:static reproduces the identical LNK2005 failure),
-        # so /FORCE:MULTIPLE is required here, scoped to this target only
-        # -- not the whole build via CMAKE_EXE_LINKER_FLAGS -- so a genuine
-        # future duplicate-symbol bug in cea itself or the C bindings still
-        # fails loudly.
+        # Windows SDK 10.0.26100.0 and ifx both ship frexp/ldexp/etc
+        # (libucrt.lib vs. Intel's libmmd.lib), producing LNK2005 at link
+        # time -- a documented Intel/Windows-SDK interaction, and a
+        # duplicate-symbol bookkeeping conflict rather than a behavioral
+        # one (both implementations are IEEE754-identical). -libs:static
+        # alone doesn't avoid it; /FORCE:MULTIPLE is scoped to this target
+        # only, not CMAKE_EXE_LINKER_FLAGS, so a genuine duplicate-symbol
+        # bug elsewhere in the build still fails loudly.
         target_link_options(cea_core_test PRIVATE
             "-libs:static"
             "-Qoption,link,/FORCE:MULTIPLE"
