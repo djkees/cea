@@ -2616,7 +2616,7 @@ contains
         real(dp) :: v_reac, u_reac, weights(3)
         real(dp), parameter :: h = 1.0d-6
         real(dp), parameter :: tol = 5.0d-2
-        real(dp), parameter :: tol_dU_dstate2 = 1.0d30
+        real(dp), parameter :: tol_dU_dstate2 = 3.0d-3
         real(dp) :: rel
         ! integer :: i
 
@@ -2712,16 +2712,14 @@ contains
         rel = abs(totals%dU_dstate1_fd - totals%dU_dstate1) / max(abs(totals%dU_dstate1), 1.0d-30)
         ! write(*,*) "dU/dstate1: an=", totals%dU_dstate1, " fd=", totals%dU_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        ! dU/dstate2 = 0 for uv, but FD noise here is unusually large; left unfailable pending separate investigation
-        rel = abs(totals%dU_dstate2_fd - totals%dU_dstate2) / max(abs(totals%dU_dstate2), 1.0d-30)
-        ! write(*,*) "dU/dstate2: an=", totals%dU_dstate2, " fd=", totals%dU_dstate2_fd, " rel=", rel
-        @assertLessThan(rel, tol_dU_dstate2)
-        ! dU/dw0 = 0 for uv, same reasoning as dU/dstate2 above; routed through the same unfailable bound
-        rel = maxval(abs(totals%dU_dw0_fd - totals%dU_dw0) / max(abs(totals%dU_dw0), 1.0d-30))
-        ! do i = 1, solver%num_reactants
-            ! write(*,*) "dU/dw0(", i, "): an=", totals%dU_dw0(i), " fd=", totals%dU_dw0_fd(i)
-        ! end do
-        @assertLessThan(rel, tol_dU_dstate2)
+        ! dU/dstate2 = 0 for uv (U is pinned to the input target regardless of V);
+        ! check the FD reference directly against an absolute floor rather than
+        ! dividing by the exact-zero analytic value.
+        @assertEqual(0.0d0, totals%dU_dstate2)
+        @assertLessThan(abs(totals%dU_dstate2_fd), tol_dU_dstate2)
+        ! dU/dw0 = 0 for uv, same reasoning as dU/dstate2 above.
+        @assertEqual(0.0d0, maxval(abs(totals%dU_dw0)))
+        @assertLessThan(maxval(abs(totals%dU_dw0_fd)), tol_dU_dstate2)
 
         rel = abs(totals%dG_dstate1_fd - totals%dG_dstate1) / max(abs(totals%dG_dstate1), 1.0d-30)
         ! write(*,*) "dG/dstate1: an=", totals%dG_dstate1, " fd=", totals%dG_dstate1_fd, " rel=", rel
@@ -2772,7 +2770,7 @@ contains
         real(dp) :: v_reac, u_reac, weights(3)
         real(dp), parameter :: h = 1.0d-6
         real(dp), parameter :: tol = 5.0d-2
-        real(dp), parameter :: tol_dU_dstate2 = 1.0d30
+        real(dp), parameter :: tol_dU_dstate2 = 1.0d-2
         real(dp) :: rel
         integer :: i
 
@@ -2812,7 +2810,7 @@ contains
         totals = EqDerivatives(solver, solution)
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
-        call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call totals%compute_fd(solver, solution, h, verbose=.false., central=.true.)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         write(*,*) "dT/dstate1: an=", totals%dT_dstate1, " fd=", totals%dT_dstate1_fd, " rel=", rel
@@ -2868,16 +2866,18 @@ contains
         rel = abs(totals%dU_dstate1_fd - totals%dU_dstate1) / max(abs(totals%dU_dstate1), 1.0d-30)
         write(*,*) "dU/dstate1: an=", totals%dU_dstate1, " fd=", totals%dU_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        ! dU/dstate2 = 0 for uv, but FD noise here is unusually large; left unfailable pending separate investigation
-        rel = abs(totals%dU_dstate2_fd - totals%dU_dstate2) / max(abs(totals%dU_dstate2), 1.0d-30)
-        write(*,*) "dU/dstate2: an=", totals%dU_dstate2, " fd=", totals%dU_dstate2_fd, " rel=", rel
-        @assertLessThan(rel, tol_dU_dstate2)
-        ! dU/dw0 = 0 for uv, same reasoning as dU/dstate2 above; routed through the same unfailable bound
-        rel = maxval(abs(totals%dU_dw0_fd - totals%dU_dw0) / max(abs(totals%dU_dw0), 1.0d-30))
+        ! dU/dstate2 = 0 for uv (U is pinned to the input target regardless of V);
+        ! check the FD reference directly against an absolute floor rather than
+        ! dividing by the exact-zero analytic value.
+        write(*,*) "dU/dstate2: an=", totals%dU_dstate2, " fd=", totals%dU_dstate2_fd
+        @assertEqual(0.0d0, totals%dU_dstate2)
+        @assertLessThan(abs(totals%dU_dstate2_fd), tol_dU_dstate2)
+        ! dU/dw0 = 0 for uv, same reasoning as dU/dstate2 above.
         do i = 1, solver%num_reactants
             write(*,*) "dU/dw0(", i, "): an=", totals%dU_dw0(i), " fd=", totals%dU_dw0_fd(i)
         end do
-        @assertLessThan(rel, tol_dU_dstate2)
+        @assertEqual(0.0d0, maxval(abs(totals%dU_dw0)))
+        @assertLessThan(maxval(abs(totals%dU_dw0_fd)), tol_dU_dstate2)
 
         rel = abs(totals%dG_dstate1_fd - totals%dG_dstate1) / max(abs(totals%dG_dstate1), 1.0d-30)
         write(*,*) "dG/dstate1: an=", totals%dG_dstate1, " fd=", totals%dG_dstate1_fd, " rel=", rel
