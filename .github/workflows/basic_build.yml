@@ -420,6 +420,18 @@ jobs:
         if: ${{ runner.os == 'Windows' }}
         run: choco install gnuwin32-m4 -y
 
+      - name: Point GFE submodules at Goddard's fix branches (validation only, Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        run: |
+          # Throwaway validation of Goddard-Fortran-Ecosystem's proposed
+          # fixes for the ifx "-g ambiguous" bug, requested in
+          # yaFyaml#95 / fArgParse#169 / pFUnit#564 / pFlogger#168, before
+          # they land upstream. Not meant to be merged.
+          for sub in fArgParse yaFyaml pFUnit pFlogger; do
+            git -C "extern/gfe/$sub" fetch origin bugfix/windows-intel-flags
+            git -C "extern/gfe/$sub" checkout FETCH_HEAD
+          done
+
       - name: Enforce ifx version floor (Windows Intel)
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
         run: |
@@ -435,26 +447,6 @@ jobs:
             echo "::error::fversion=$fver is below the required floor of $floor for this leg (see the comment on fversion in the matrix definition for why)." >&2
             exit 1
           fi
-
-      - name: Work around GFE unconditional -g flag on Windows ifx (Windows Intel)
-        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        run: |
-          # fArgParse's and yaFyaml's cmake/IntelLLVM.cmake set an
-          # unconditional bare "-g " CMAKE_Fortran_FLAGS; ifx's Windows
-          # driver rejects it as an ambiguous prefix (several long-form
-          # flags also start with 'g'). Their sibling gFTL/gFTL-shared
-          # already special-case WIN32 for this; patch these two to match.
-          for f in extern/gfe/fArgParse/cmake/IntelLLVM.cmake extern/gfe/yaFyaml/cmake/IntelLLVM.cmake; do
-            sed -i 's/^set(CMAKE_Fortran_FLAGS "-g /set(CMAKE_Fortran_FLAGS "-debug:full /' "$f"
-            # sed doesn't fail on a zero-match no-op; verify the patch
-            # actually landed so an upstream reformat fails loudly here
-            # instead of surfacing later as an unrelated-looking "option
-            # '/g' is ambiguous" ifx error.
-            if ! grep -q '^set(CMAKE_Fortran_FLAGS "-debug:full ' "$f"; then
-              echo "::error::expected patch did not apply to $f -- either the upstream file format changed, or GFE fixed this natively upstream (in which case this workaround step can be removed)" >&2
-              exit 1
-            fi
-          done
 
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
@@ -510,6 +502,15 @@ jobs:
 
       - name: Configure and Build GFE
         run: |
+          # pFUnit#564/pFlogger#168's fix only shows up in the
+          # CMAKE_BUILD_TYPE=Debug path per Goddard's own analysis; force
+          # Debug here (Windows Intel only) so this validation run actually
+          # exercises it. Not meant to be merged.
+          gfe_build_type="Release"
+          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
+            gfe_build_type="Debug"
+          fi
+
           gfe_cmake_flags=()
           if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "gcc" ]; then
             # gfortran's -cpp preprocessor does not predefine _WIN32 the way a
@@ -530,7 +531,7 @@ jobs:
 
           cmake -S extern/gfe -B build/extern/gfe -GNinja \
             -DCMAKE_INSTALL_PREFIX=build/install \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE="${gfe_build_type}" \
             -DSKIP_MPI=YES \
             -DSKIP_OPENMP=YES \
             -DSKIP_FHAMCREST=YES \
