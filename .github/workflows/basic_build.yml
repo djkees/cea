@@ -68,7 +68,7 @@ jobs:
 
       - name: Set up Intel oneAPI compiler (Windows)
         if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
-        uses: fortran-lang/setup-fortran@v1
+        uses: fortran-lang/setup-fortran@v2.0.0-beta.7
         with:
           compiler: ${{ matrix.compiler }}
           version: ${{ matrix.version }}
@@ -249,7 +249,7 @@ jobs:
           python-version: "3.12"
 
       - name: Set up Fortran compiler
-        uses: fortran-lang/setup-fortran@v1
+        uses: fortran-lang/setup-fortran@v2.0.0-beta.7
         with:
           compiler: gcc
           version: "11"
@@ -291,7 +291,7 @@ jobs:
           python-version: "3.12"
 
       - name: Set up Fortran compiler
-        uses: fortran-lang/setup-fortran@v1
+        uses: fortran-lang/setup-fortran@v2.0.0-beta.7
         with:
           compiler: gcc
           version: "11"
@@ -458,7 +458,7 @@ jobs:
 
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
-        uses: fortran-lang/setup-fortran@v1
+        uses: fortran-lang/setup-fortran@v2.0.0-beta.7
         with:
           compiler: ${{ matrix.toolchain.fcompiler }}
           version: ${{ matrix.toolchain.fversion }}
