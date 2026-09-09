@@ -516,15 +516,6 @@ jobs:
             gfe_cmake_flags+=(-DCMAKE_Fortran_FLAGS=-D_WIN32)
           fi
 
-          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
-            # pFUnit's own CMakeLists.txt enables C language directly, but
-            # this oneAPI package is Fortran-only (no clang.exe for
-            # icx-cc.exe to drive). Point GFE's own C need at cl instead,
-            # already on PATH from "Set up MSVC toolchain"; this doesn't
-            # affect CEA's own C compiler choice below.
-            gfe_cmake_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
-          fi
-
           cmake -S extern/gfe -B build/extern/gfe -GNinja \
             -DCMAKE_INSTALL_PREFIX=build/install \
             -DCMAKE_BUILD_TYPE=Release \
@@ -567,7 +558,6 @@ jobs:
             -DCEA_ENABLE_BIND_PYTHON=OFF \
             -DCEA_ENABLE_BIND_MATLAB=OFF \
             -DCEA_ENABLE_BIND_EXCEL=OFF \
-            -DCMAKE_C_COMPILER=cl \
             -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON
 
       - name: Build
