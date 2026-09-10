@@ -436,26 +436,6 @@ jobs:
             exit 1
           fi
 
-      - name: Work around GFE unconditional -g flag on Windows ifx (Windows Intel)
-        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        run: |
-          # fArgParse's and yaFyaml's cmake/IntelLLVM.cmake set an
-          # unconditional bare "-g " CMAKE_Fortran_FLAGS; ifx's Windows
-          # driver rejects it as an ambiguous prefix (several long-form
-          # flags also start with 'g'). Their sibling gFTL/gFTL-shared
-          # already special-case WIN32 for this; patch these two to match.
-          for f in extern/gfe/fArgParse/cmake/IntelLLVM.cmake extern/gfe/yaFyaml/cmake/IntelLLVM.cmake; do
-            sed -i 's/^set(CMAKE_Fortran_FLAGS "-g /set(CMAKE_Fortran_FLAGS "-debug:full /' "$f"
-            # sed doesn't fail on a zero-match no-op; verify the patch
-            # actually landed so an upstream reformat fails loudly here
-            # instead of surfacing later as an unrelated-looking "option
-            # '/g' is ambiguous" ifx error.
-            if ! grep -q '^set(CMAKE_Fortran_FLAGS "-debug:full ' "$f"; then
-              echo "::error::expected patch did not apply to $f -- either the upstream file format changed, or GFE fixed this natively upstream (in which case this workaround step can be removed)" >&2
-              exit 1
-            fi
-          done
-
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
         uses: fortran-lang/setup-fortran@v1
