@@ -101,6 +101,17 @@ if (CEA_ENABLE_BIND_PYTHON)
     install(FILES ${CMAKE_BINARY_DIR}/thermo.lib DESTINATION data)
     install(FILES ${CMAKE_BINARY_DIR}/trans.lib DESTINATION data)
 
+    # native MATLAB wrapper functions, so cea.matlab_dir() can find them
+    # in a pip-installed package (see source/bind/matlab/README.md)
+    if (CEA_ENABLE_BIND_MATLAB)
+        install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/matlab/
+            DESTINATION matlab
+            FILES_MATCHING
+                PATTERN "samples" EXCLUDE
+                PATTERN "*.m"
+        )
+    endif()
+
     # rest of the pure python package files handled by pip & scikit-build-core
 
 endif()

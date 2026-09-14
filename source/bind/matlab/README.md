@@ -2,25 +2,32 @@ CEA MATLAB Binding
 ==================
 MATLAB support is provided through the Python package namespace rather than a
 separate compiled MATLAB extension. Point MATLAB at a Python interpreter with
-the installed ``cea`` package, then import the supported wrapper entry points
-from ``cea.matlab``.
+the installed ``cea`` package, then add this directory (``source/bind/matlab``)
+to your MATLAB path to use the native-MATLAB wrapper functions below.
 
 Recommended approach:
 - Import the root package for constants and units:
   ``py.importlib.import_module('cea')``
-- Import the MATLAB-oriented wrapper module for solve entry points:
-  ``py.importlib.import_module('cea.matlab')``
-- Use the MATLAB-facing wrapper entry points:
-  ``cea.matlab.eq_solve(...)``
-  ``cea.matlab.rocket_solve(...)``
-  ``cea.matlab.shock_solve(...)``
-  ``cea.matlab.detonation_solve(...)``
-- Each wrapper returns a flat Python namespace of scalars, arrays, and
-  dictionaries rather than a raw ``EqSolution`` / ``RocketSolution`` /
-  ``ShockSolution`` / ``DetonationSolution`` object.
-- The wrapper module is pure Python. The ``CEA_ENABLE_BIND_MATLAB`` CMake
-  option is a compatibility knob for MATLAB-via-Python workflows; it does not
-  build a separate native MATLAB extension.
+- Add its MATLAB wrapper directory to the MATLAB path with
+  ``addpath(char(cea.matlab_dir()))`` — this resolves the packaged
+  ``cea/matlab`` directory (installed via pip) or, in a source checkout,
+  falls back to this directory. No path to find or type.
+- Then call the plain-MATLAB wrapper functions:
+  ``eq_solve(...)``
+  ``rocket_solve(...)``
+  ``shock_solve(...)``
+  ``detonation_solve(...)``
+- Each wrapper accepts species names as a MATLAB string array or cellstr and
+  numeric arguments as plain MATLAB doubles/vectors (no ``py.list`` or
+  ``py.numpy.array`` needed), and returns a plain MATLAB struct — numeric
+  fields as doubles, ``mass_fractions``/``mole_fractions`` as a
+  ``containers.Map`` keyed by species name — instead of a Python namespace.
+  These wrappers call through to ``cea.matlab.eq_solve`` and its siblings
+  (see ``source/bind/python/cea/matlab.py``), which return the same flat
+  namespace of scalars, NumPy arrays, and dictionaries these wrappers unwrap.
+- The wrapper module is pure Python/MATLAB. The ``CEA_ENABLE_BIND_MATLAB``
+  CMake option is a compatibility knob for MATLAB-via-Python workflows; it
+  does not build a separate native MATLAB extension.
 - Example scripts live in ``source/bind/matlab/samples/``:
   ``equilibrium_example.m``, ``rocket_example.m``, ``shock_example.m``,
   ``detonation_example.m``.
