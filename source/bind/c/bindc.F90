@@ -303,10 +303,12 @@ contains
 
         if (opts%ninsert < 0) then
             ierr = CEA_INVALID_SIZE
+            call log_error('parse_solver_opts: ninsert must not be negative')
             return
         end if
         if (opts%ninsert > 0 .and. .not. c_associated(opts%insert)) then
             ierr = CEA_INVALID_SIZE
+            call log_error('parse_solver_opts: ninsert > 0 but insert pointer is null')
             return
         end if
 
@@ -338,6 +340,7 @@ contains
                 call c_copy(cinsert(n), name)
                 if (len(name) > snl) then
                     ierr = CEA_INVALID_SIZE
+                    call log_error('parse_solver_opts: insert species name "'//name//'" exceeds max length')
                     return
                 end if
                 insert(n) = name
