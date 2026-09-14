@@ -506,7 +506,7 @@ contains
 
     end subroutine
 
-    subroutine build_thermo_coeffs(species_thermo, num_species, name_map, tl, thermo, ntl)
+    subroutine build_thermo_coeffs(species_thermo, num_species, name_map, tl, thermo, ntl, Tg)
 
         ! Inputs
         type(SpeciesThermo), intent(inout) :: species_thermo(:)
@@ -515,15 +515,16 @@ contains
         real(dp), intent(in) :: tl(:, :)
         real(dp), intent(in) :: thermo(:, :, :)
         integer, intent(in) :: ntl(:)
+        real(dp), intent(in) :: Tg(num_fit_g+1)  ! Gas temperature-grid boundaries, as read from the file header
 
         ! Locals
         integer :: i, j
         integer :: num_set(num_species)  ! Counter for how many condensed phase temperature intervals have been set
-        ! TODO: convert this from "Tg" that gets read in
-        real(dp), parameter :: Tg(num_fit_g, 2) = reshape([ &
-                                                  200.0d0,  1000.0d0, 6000.0d0, &
-                                                  1000.0d0, 6000.0d0, 20000.0d0], shape(Tg))
+        real(dp) :: Tg_bounds(num_fit_g, 2)  ! Tg reshaped into per-interval (lower, upper) bounds
         integer, parameter :: max_intervals = 10
+
+        Tg_bounds(:, 1) = Tg(1:num_fit_g)
+        Tg_bounds(:, 2) = Tg(2:num_fit_g+1)
 
         num_set = 0
         do i = 1,size(name_map)
@@ -538,7 +539,7 @@ contains
                            allocate(species_thermo(name_map(i))%fits(num_fit_g))
                 end if
 
-                species_thermo(name_map(i))%T_fit = Tg
+                species_thermo(name_map(i))%T_fit = Tg_bounds
                 do j = 1,num_fit_g
                     species_thermo(name_map(i))%fits(j)%a1 = thermo(i, 1, j)
                     species_thermo(name_map(i))%fits(j)%a2 = thermo(i, 2, j)
@@ -751,9 +752,9 @@ contains
         end do
 
         ! Assign thermo coefficients
-        call build_thermo_coeffs(db%product_thermo, db%num_products, name_map, tl, thermo, ntl)
+        call build_thermo_coeffs(db%product_thermo, db%num_products, name_map, tl, thermo, ntl, Tg)
         call build_thermo_coeffs(db%reactant_thermo, db%num_reactants, reac_name_map, &
-                                 reac_tl, reac_thermo, reac_ntl)
+                                 reac_tl, reac_thermo, reac_ntl, Tg)
 
         ! Assign reference temperatures and enthalpy values
         do i = 1,size(reac_name_map)
