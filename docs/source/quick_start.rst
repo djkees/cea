@@ -175,14 +175,17 @@ above, before doing anything else with ``cea``::
     pyenv('Version', 'C:\path\to\python.exe');
 
     cea = py.importlib.import_module('cea');
-    ceam = py.importlib.import_module('cea.matlab');
+    addpath(char(cea.matlab_dir()));
 
 This only needs to run once per MATLAB session — running ``pyenv`` a second
 time after these lines have already run will error, so if you need to
-change the Python path, restart MATLAB first.
+change the Python path, restart MATLAB first. ``cea.matlab_dir()`` locates
+CEA's native-MATLAB wrapper functions (``eq_solve``, ``rocket_solve``, and
+so on) inside the installed ``cea`` package, so there's no folder path to
+find or type — ``addpath`` just puts it on your MATLAB path.
 
-*Tip:* save these three lines as a MATLAB script, e.g. ``setup_cea.m``, so
-each session you just type ``setup_cea`` instead of retyping them.
+*Tip:* save these lines as a MATLAB script, e.g. ``setup_cea.m``, so each
+session you just type ``setup_cea`` instead of retyping them.
 
 Solving a Problem
 ~~~~~~~~~~~~~~~~~
@@ -191,12 +194,12 @@ With the session set up, solve a stoichiometric H\ :sub:`2`/O\ :sub:`2`
 constant-enthalpy, constant-pressure (HP) combustion problem — the
 adiabatic flame temperature of hydrogen burning in oxygen::
 
-    reactants = py.list({'H2', 'O2'});
+    reactants = ["H2", "O2"];
     pressure = cea.units.atm_to_bar(1.0);
 
-    solution = ceam.eq_solve(cea.HP, reactants, ...
-        fuel_amounts=py.numpy.array([2.0, 0.0]), ...
-        oxid_amounts=py.numpy.array([0.0, 1.0]), ...
+    solution = eq_solve(cea.HP, reactants, ...
+        fuel_amounts=[2.0, 0.0], ...
+        oxid_amounts=[0.0, 1.0], ...
         moles=true, ...
         T_reac=298.15, ...
         P=pressure);
@@ -207,7 +210,9 @@ This should print ``Adiabatic flame temperature: 3074.5 K``.
 ``fuel_amounts`` and ``oxid_amounts`` each list one amount per entry in
 ``reactants``: ``[2.0, 0.0]`` is 2 mol of ``H2`` and 0 mol of ``O2`` on the
 fuel side, ``[0.0, 1.0]`` is 0 mol ``H2`` and 1 mol ``O2`` on the oxidizer
-side — together, 2 mol H2 to 1 mol O2.
+side — together, 2 mol H2 to 1 mol O2. Both are plain MATLAB vectors —
+``eq_solve`` converts them internally, so there's no ``py.list`` or
+``py.numpy.array`` to write yourself.
 
 ``solution`` holds the result as plain numbers and arrays you can read
 directly with dot notation, the same as any other MATLAB struct — no
