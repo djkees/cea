@@ -61,6 +61,14 @@ if (CEA_BUILD_TESTING)
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
 
+    add_executable(cea_bindc_error_codes tests/error_codes.c)
+    target_link_libraries(cea_bindc_error_codes PRIVATE cea::bindc)
+    add_test(
+        NAME cea_bindc_error_codes
+        COMMAND cea_bindc_error_codes
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+
     add_executable(cea_bindc_rp1311_ex1 samples/rp1311_example1.c)
     target_link_libraries(cea_bindc_rp1311_ex1 PRIVATE cea::bindc)
     add_test(
