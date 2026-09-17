@@ -1278,6 +1278,11 @@ cdef class Mixture:
                 if isinstance(temperature, (float, int, np.floating)):
                     ierr = cea_mixture_calc_property_tp(self.ptr, <cea_property_type>prop_type, nspecies, reac_weights, temperature, pressure, &value)
                 elif type(temperature) in [list, np.ndarray]:
+                    if len(temperature) != nspecies:
+                        raise ValueError(
+                            f"Mixture.calc_property: temperature has {len(temperature)} elements, "
+                            f"expected {nspecies} (one per species in weights)"
+                        )
                     for i in range(nspecies):
                         reac_temps[i] = temperature[i]
                     ierr = cea_mixture_calc_property_tp_multitemp(self.ptr, <cea_property_type>prop_type, nspecies, reac_weights, nspecies, reac_temps, pressure, &value)
@@ -1287,6 +1292,11 @@ cdef class Mixture:
                 if isinstance(temperature, (float, int, np.floating)):
                     ierr = cea_mixture_calc_property(self.ptr, <cea_property_type>prop_type, nspecies, reac_weights, temperature, &value)
                 elif type(temperature) in [list, np.ndarray]:
+                    if len(temperature) != nspecies:
+                        raise ValueError(
+                            f"Mixture.calc_property: temperature has {len(temperature)} elements, "
+                            f"expected {nspecies} (one per species in weights)"
+                        )
                     for i in range(nspecies):
                         reac_temps[i] = temperature[i]
                     ierr = cea_mixture_calc_property_multitemp(self.ptr, <cea_property_type>prop_type, nspecies, reac_weights, nspecies, reac_temps, &value)
