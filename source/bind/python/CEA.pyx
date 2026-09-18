@@ -1253,12 +1253,6 @@ cdef class Mixture:
         cdef cea_err ierr
         cdef cea_real value
         cdef int nspecies = <int>len(weights)
-        cdef cea_real *reac_weights = <cea_real *>malloc(nspecies * sizeof(cea_real))
-        if reac_weights == NULL:
-            raise MemoryError("Failed to allocate weights buffer")
-
-        for i in range(nspecies):
-            reac_weights[i] = weights[i]
 
         if prop_type not in [VOLUME, DENSITY, ENTHALPY, ENERGY, FROZEN_CP, FROZEN_CV, ENTROPY, GIBBS_ENERGY]:
             raise ValueError("Property type not supported for mixture calculations")
@@ -1266,6 +1260,13 @@ cdef class Mixture:
         if prop_type in [ENTROPY, GIBBS_ENERGY, VOLUME, DENSITY]:
             if pressure is None:
                 raise ValueError("Pressure must be provided for enthalpy and Gibbs energy calculations")
+
+        cdef cea_real *reac_weights = <cea_real *>malloc(nspecies * sizeof(cea_real))
+        if reac_weights == NULL:
+            raise MemoryError("Failed to allocate weights buffer")
+
+        for i in range(nspecies):
+            reac_weights[i] = weights[i]
 
         # Handle the case where temperature is a list of numpy array
         cdef cea_real *reac_temps = <cea_real *>malloc(nspecies * sizeof(cea_real))
