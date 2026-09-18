@@ -1,0 +1,8 @@
+# Dynamic loader bookkeeping from dlopen() (triggered whenever CPython
+# imports a C extension) is kept alive for the process lifetime by design --
+# not a real leak. Keep this list narrow: CEA allocates via plain libc
+# malloc/free, so broader suppressions (e.g. PyImport_*, pymalloc) risk
+# masking a real leak instead of just this known false positive.
+leak:dl_open
+leak:_dl_open
+leak:dlopen
