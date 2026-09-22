@@ -453,7 +453,7 @@ jobs:
 
       - name: Set up MSVC toolchain (Windows MSVC/Intel)
         if: ${{ runner.os == 'Windows' && (matrix.toolchain.ccompiler == 'msvc' || matrix.toolchain.fcompiler == 'intel') }}
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: step-security/msvc-dev-cmd@v1
 
       - name: Remove MinGW/MSYS paths for Windows Intel builds
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
