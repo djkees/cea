@@ -212,7 +212,7 @@ jobs:
           ls -la build/source/bind/c/*cea_bindc*
 
       - name: Upload CLI executable artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cea-cli-${{ matrix.label }}
           if-no-files-found: error
@@ -223,7 +223,7 @@ jobs:
             build/trans.lib
 
       - name: Upload C ABI library artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cea-bindc-${{ matrix.label }}
           if-no-files-found: error
@@ -330,7 +330,7 @@ jobs:
       contents: write
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: release-dist
           merge-multiple: false
@@ -353,7 +353,7 @@ jobs:
           cat SHA256SUMS.txt
 
       - name: Publish GitHub release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-assets/*
           generate_release_notes: true
