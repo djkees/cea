@@ -417,6 +417,26 @@ contains
         soln%num_pts = max(0, soln%last_completed_idx)
     end subroutine
 
+    subroutine compute_sonic_and_mach(soln, idx, h_ref, gamma_s, asq, usq)
+        !! Compute sonic velocity and Mach number at station idx, isentropic
+        !! with the reference enthalpy h_ref (h_inf, or h_inj for FAC).
+        type(RocketSolution), intent(inout) :: soln
+        integer, intent(in) :: idx
+        real(dp), intent(in) :: h_ref
+        real(dp), intent(out) :: gamma_s
+        real(dp), intent(out) :: asq
+        real(dp), intent(out) :: usq
+
+        real(dp) :: h
+
+        h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
+        gamma_s = soln%eq_partials(idx)%gamma_s
+        asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
+        usq = 2.0d0*(h_ref-h)*R
+        soln%v_sonic(idx) = sqrt(asq)
+        soln%mach(idx) = sqrt(usq/asq)
+    end subroutine
+
     subroutine RocketSolver_solve_subar_frozen(self, soln, idx, n_frz, pc, subar, h_inf, ln_pinf_pt, awt)
         class(RocketSolver), intent(in) :: self
         type(RocketSolution), intent(inout) :: soln
@@ -431,7 +451,7 @@ contains
         integer :: i, j
         integer, parameter :: max_iter_area = 10
         real(dp), parameter :: area_tol = 4.0d-5
-        real(dp) :: usq, asq, h, gamma_s
+        real(dp) :: usq, asq, gamma_s
         real(dp) :: ln_pinf_pe, dln_pinf_pe_dln_aeat, dln_pinf_pe
 
         call log_debug("Starting frozen subar calculations")
@@ -454,12 +474,7 @@ contains
                 call self%frozen(soln, idx, n_frz)
                 if (.not. soln%converged) return
 
-                h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-                gamma_s = soln%eq_partials(idx)%gamma_s
-                asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-                usq = 2.0d0*(h_inf-h)*R
-                soln%v_sonic(idx) = sqrt(asq)
-                soln%mach(idx) = sqrt(usq/asq)
+                call compute_sonic_and_mach(soln, idx, h_inf, gamma_s, asq, usq)
                 soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/ &
                     (soln%pressure(idx)*sqrt(usq)*awt)
 
@@ -493,7 +508,6 @@ contains
         real(dp), parameter :: ut_tol = 0.4d-4  ! Tolerance for throat velocity convergence
         real(dp) :: p, delta_p               ! Temporary pressure variable
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
-        real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
         real(dp) :: T_melt                   ! Melting temperature of the condensed species
         real(dp) :: dlt                      ! Log(T_melt/T)
@@ -521,12 +535,7 @@ contains
             call self%eq_solver%solve(soln%eq_soln(idx), "sp", s0, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
 
             ! Compute throat properties
-            h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-            gamma_s = soln%eq_partials(idx)%gamma_s
-            asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-            usq = 2.0d0*(h_inf-h)*R
-            soln%v_sonic(idx) = sqrt(asq)
-            soln%mach(idx) = sqrt(usq/asq)
+            call compute_sonic_and_mach(soln, idx, h_inf, gamma_s, asq, usq)
 
             awt = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*sqrt(usq))
 
@@ -582,7 +591,6 @@ contains
         real(dp), parameter :: ut_tol = 0.4d-4  ! Tolerance for throat velocity convergence
         real(dp) :: p, delta_p               ! Temporary pressure variable
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
-        real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
 
         call log_debug("Starting frozen throat calculations")
@@ -608,12 +616,7 @@ contains
             if (.not. soln%converged) return
 
             ! Compute throat properties
-            h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-            gamma_s = soln%eq_partials(idx)%gamma_s
-            asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-            usq = 2.0d0*(h_inf-h)*R
-            soln%v_sonic(idx) = sqrt(asq)
-            soln%mach(idx) = sqrt(usq/asq)
+            call compute_sonic_and_mach(soln, idx, h_inf, gamma_s, asq, usq)
             awt = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*sqrt(usq))
 
             ! Check throat convergence tolerance (Eq. 6.16)
@@ -650,7 +653,6 @@ contains
         integer :: i                         ! Loop index
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: awt                      ! Throat area per unit mass flow rate
-        real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
 
         call log_debug("Starting equilibrium pi/p calculations")
@@ -671,12 +673,7 @@ contains
             call self%eq_solver%solve(soln%eq_soln(idx), "sp", s0, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
 
             ! Compute exit properties
-            h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-            gamma_s = soln%eq_partials(idx)%gamma_s
-            asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-            usq = 2.0d0*(h_inf-h)*R
-            soln%v_sonic(idx) = sqrt(asq)
-            soln%mach(idx) = sqrt(usq/asq)
+            call compute_sonic_and_mach(soln, idx, h_inf, gamma_s, asq, usq)
             soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*usq**0.5*awt)
 
             ! Set the initial conditions for the next point
@@ -714,7 +711,6 @@ contains
         integer :: i                         ! Loop index
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: awt                      ! Throat area per unit mass flow rate
-        real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
         real(dp) :: pip_nf                   ! Pressure ratio at freeze point
 
@@ -745,12 +741,7 @@ contains
             if (.not. soln%converged) return
 
             ! Compute exit properties
-            h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-            gamma_s = soln%eq_partials(idx)%gamma_s
-            asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-            usq = 2.0d0*(h_inf-h)*R
-            soln%v_sonic(idx) = sqrt(asq)
-            soln%mach(idx) = sqrt(usq/asq)
+            call compute_sonic_and_mach(soln, idx, h_inf, gamma_s, asq, usq)
             soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*usq**0.5*awt)
 
             idx = idx + 1
@@ -781,7 +772,6 @@ contains
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
         real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
-        real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
         real(dp) :: ln_pinf_pe               ! Temporary variable for ln(Pinf/Pe)
         real(dp) :: dln_pinf_pe_dln_aeat     ! Partial derivative ∂ln(Pinf/Pe)/∂ln(Ae/At)
@@ -816,12 +806,7 @@ contains
                 call self%eq_solver%solve(soln%eq_soln(idx), "sp", s0, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
 
                 ! Compute exit properties
-                h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-                gamma_s = soln%eq_partials(idx)%gamma_s
-                asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-                usq = 2.0d0*(h_inf-h)*R
-                soln%v_sonic(idx) = sqrt(asq)
-                soln%mach(idx) = sqrt(usq/asq)
+                call compute_sonic_and_mach(soln, idx, h_inf, gamma_s, asq, usq)
                 soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*sqrt(usq)*awt)
 
                 ! Compute updated pressure ratio estimate
@@ -869,7 +854,6 @@ contains
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
         real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
-        real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
         real(dp) :: ln_pinf_pe               ! Temporary variable for ln(Pinf/Pe)
         real(dp) :: dln_pinf_pe_dln_aeat     ! Partial derivative ∂ln(Pinf/Pe)/∂ln(Ae/At)
@@ -903,12 +887,7 @@ contains
                 call self%eq_solver%solve(soln%eq_soln(idx), "sp", s0, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
 
                 ! Compute exit properties
-                h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-                gamma_s = soln%eq_partials(idx)%gamma_s
-                asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-                usq = 2.0d0*(h_inf-h)*R
-                soln%v_sonic(idx) = sqrt(asq)
-                soln%mach(idx) = sqrt(usq/asq)
+                call compute_sonic_and_mach(soln, idx, h_inf, gamma_s, asq, usq)
                 soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*sqrt(usq)*awt)
 
                 ! Compute updated pressure ratio estimate
@@ -956,7 +935,6 @@ contains
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
         real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
-        real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
         real(dp) :: ln_pinf_pe               ! Temporary variable for ln(Pinf/Pe)
         real(dp) :: dln_pinf_pe_dln_aeat     ! Partial derivative ∂ln(Pinf/Pe)/∂ln(Ae/At)
@@ -998,12 +976,7 @@ contains
                 if (.not. soln%converged) return
 
                 ! Compute exit properties
-                h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-                gamma_s = soln%eq_partials(idx)%gamma_s
-                asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-                usq = 2.0d0*(h_inf-h)*R
-                soln%v_sonic(idx) = sqrt(asq)
-                soln%mach(idx) = sqrt(usq/asq)
+                call compute_sonic_and_mach(soln, idx, h_inf, gamma_s, asq, usq)
                 soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*sqrt(usq)*awt)
 
                 ! Compute updated pressure ratio estimate
@@ -1263,7 +1236,7 @@ contains
         real(dp), parameter :: c_tol = 2.d-5 ! Tolerance for chamber conditions convergence
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
-        real(dp) :: h_inj, h                 ! Enthalpy at injector; enthalpy at any other station (temporary)
+        real(dp) :: h_inj                    ! Enthalpy at injector
         real(dp) :: ln_pinf_pt               ! Temporary variable for ln(Pinf/Pt)
         real(dp) :: ln_pinf_pc               ! Temporary variable for ln(Pinf/Pc)
         real(dp) :: dln_pinf_pc_dln_acat     ! Partial derivative ∂ln(Pinf/Pc)/∂ln(Ac/At)
@@ -1458,12 +1431,7 @@ contains
                 end if
 
                 ! Compute combustor properties
-                h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-                gamma_s = soln%eq_partials(idx)%gamma_s
-                asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
-                usq = 2.0d0*(h_inj-h)*R
-                soln%v_sonic(idx) = sqrt(asq)
-                soln%mach(idx) = sqrt(usq/asq)
+                call compute_sonic_and_mach(soln, idx, h_inj, gamma_s, asq, usq)
 
                 soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*sqrt(usq)*awt)
 
