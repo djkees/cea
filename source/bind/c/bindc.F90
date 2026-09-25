@@ -310,7 +310,7 @@ contains
             return
         end if
 
-        allocate(cinsert(opts%ninsert), insert(opts%ninsert))
+        allocate(insert(opts%ninsert))
 
         ! Handle optional reactants mixture
         if (c_associated(opts%reactants)) then
