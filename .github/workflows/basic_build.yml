@@ -47,10 +47,10 @@ jobs:
         shell: bash
     steps:
       - name: Check out CEA
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -212,7 +212,7 @@ jobs:
           ls -la build/source/bind/c/*cea_bindc*
 
       - name: Upload CLI executable artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cea-cli-${{ matrix.label }}
           if-no-files-found: error
@@ -223,7 +223,7 @@ jobs:
             build/trans.lib
 
       - name: Upload C ABI library artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cea-bindc-${{ matrix.label }}
           if-no-files-found: error
@@ -241,10 +241,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out CEA
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -283,10 +283,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out CEA
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -330,7 +330,7 @@ jobs:
       contents: write
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: release-dist
           merge-multiple: false
@@ -353,7 +353,7 @@ jobs:
           cat SHA256SUMS.txt
 
       - name: Publish GitHub release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-assets/*
           generate_release_notes: true
@@ -406,11 +406,11 @@ jobs:
         shell: bash
     steps:
       - name: Check out CEA
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Check out GFE
         if: ${{ runner.os != 'Windows' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: Goddard-Fortran-Ecosystem/GFE
           path: extern/gfe
@@ -453,7 +453,7 @@ jobs:
 
       - name: Set up MSVC toolchain (Windows MSVC/Intel)
         if: ${{ runner.os == 'Windows' && (matrix.toolchain.ccompiler == 'msvc' || matrix.toolchain.fcompiler == 'intel') }}
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: step-security/msvc-dev-cmd@v1
 
       - name: Remove MinGW/MSYS paths for Windows Intel builds
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
