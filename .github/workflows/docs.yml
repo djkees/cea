@@ -29,7 +29,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .
           # breathe 5.0.0 crashes on the Fortran API page (bitfield is None)
-          python -m pip install sphinx "breathe @ git+https://github.com/breathe-doc/breathe@aa52a91185329f00ece9e4b5a0b1a2396bb4eed8"
+          python -m pip install sphinx setuptools
+          git clone https://github.com/breathe-doc/breathe "$RUNNER_TEMP/breathe"
+          git -C "$RUNNER_TEMP/breathe" checkout aa52a91185329f00ece9e4b5a0b1a2396bb4eed8
+          (cd "$RUNNER_TEMP/breathe" && python xml_parser_generator/setuptools_builder.py)
+          python -m pip install "$RUNNER_TEMP/breathe"
 
       # Optional: regenerate Doxygen XML
       - name: Build Doxygen XML
