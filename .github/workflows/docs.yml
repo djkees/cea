@@ -33,6 +33,7 @@ jobs:
           git clone https://github.com/breathe-doc/breathe "$RUNNER_TEMP/breathe"
           git -C "$RUNNER_TEMP/breathe" checkout aa52a91185329f00ece9e4b5a0b1a2396bb4eed8
           (cd "$RUNNER_TEMP/breathe" && python xml_parser_generator/setuptools_builder.py)
+          sed -i "s/if len(data_object.bitfield) > 0:/if data_object.bitfield:/" "$RUNNER_TEMP/breathe/breathe/renderer/sphinxrenderer.py"
           python -m pip install "$RUNNER_TEMP/breathe"
 
       # Optional: regenerate Doxygen XML
