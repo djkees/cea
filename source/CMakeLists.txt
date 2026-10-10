@@ -98,6 +98,22 @@ if(CEA_BUILD_TESTING)
         WILL_FAIL TRUE
     )
 
+    # Shock initial temperatures in non-kelvin units must match the kelvin case
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(
+            NAME cea_main_test_temperature_units
+            COMMAND ${Python3_EXECUTABLE}
+                ${PROJECT_SOURCE_DIR}/test/main_interface/temperature_units.py
+                $<TARGET_FILE:cea> ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_BINARY_DIR}/trans.lib
+        )
+    else()
+        message(WARNING
+            "Python 3 was not found; cea_main_test_temperature_units "
+            "will not be registered."
+        )
+    endif()
+
 endif()
 
 
