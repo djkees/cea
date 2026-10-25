@@ -159,7 +159,6 @@ jobs:
         if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
           cmake -S . -B build -G Ninja ^
             -DCMAKE_Fortran_COMPILER="%FC%" ^
             -DCMAKE_BUILD_TYPE=Release ^
@@ -179,7 +178,6 @@ jobs:
         if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
           cmake --build build
 
       - name: Run smoke test (Unix)
@@ -196,7 +194,6 @@ jobs:
         if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
           .\build\source\cea.exe -h
 
       - name: Verify C ABI library output (Unix)
