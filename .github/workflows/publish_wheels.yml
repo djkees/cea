@@ -52,7 +52,7 @@ jobs:
 
       - name: Set up Intel oneAPI Fortran (Windows)
         if: runner.os == 'Windows'
-        uses: fortran-lang/setup-fortran@v1
+        uses: fortran-lang/setup-fortran@develop
         with:
           compiler: intel
           version: "2025.2"
