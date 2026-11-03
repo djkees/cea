@@ -699,9 +699,9 @@ contains
                 P0 = get_state2(prob, idx_P)
                 idx_T = merge(num_T, i, i > num_T)
                 if (allocated(prob%problem%t_schedule)) then
-                    T0 = prob%problem%t_schedule%values(idx_T)
+                    T0 = convert_units_to_si(prob%problem%t_schedule%values(idx_T), prob%problem%t_schedule%units)
                 else if (allocated(prob%reactants(1)%temperature)) then
-                    T0 = prob%reactants(1)%temperature%values(1)
+                    T0 = convert_units_to_si(prob%reactants(1)%temperature%values(1), prob%reactants(1)%temperature%units)
                 else
                     call abort("Temperature not supplied for shock problem")
                 end if
@@ -737,9 +737,9 @@ contains
                     P0 = get_state2(prob, idx_P)
                     idx_T = merge(num_T, i, i > num_T)
                     if (allocated(prob%problem%t_schedule)) then
-                        T0 = prob%problem%t_schedule%values(idx_T)
+                        T0 = convert_units_to_si(prob%problem%t_schedule%values(idx_T), prob%problem%t_schedule%units)
                     else if (allocated(prob%reactants(1)%temperature)) then
-                        T0 = prob%reactants(1)%temperature%values(1)
+                        T0 = convert_units_to_si(prob%reactants(1)%temperature%values(1), prob%reactants(1)%temperature%units)
                     else
                         call abort("Temperature not supplied for shock problem")
                     end if
@@ -804,9 +804,9 @@ contains
                 end if
 
                 if (allocated(prob%problem%t_schedule)) then
-                    T0 = prob%problem%t_schedule%values(idx_T)
+                    T0 = convert_units_to_si(prob%problem%t_schedule%values(idx_T), prob%problem%t_schedule%units)
                 else if (allocated(prob%reactants(1)%temperature)) then
-                    T0 = prob%reactants(1)%temperature%values(1)
+                    T0 = convert_units_to_si(prob%reactants(1)%temperature%values(1), prob%reactants(1)%temperature%units)
                 else
                     call abort("Temperature not supplied for shock problem")
                 end if
@@ -842,9 +842,9 @@ contains
                     P0 = get_state2(prob, idx_P)
                     idx_T = merge(num_T, i, i > num_T)
                     if (allocated(prob%problem%t_schedule)) then
-                        T0 = prob%problem%t_schedule%values(idx_T)
+                        T0 = convert_units_to_si(prob%problem%t_schedule%values(idx_T), prob%problem%t_schedule%units)
                     else if (allocated(prob%reactants(1)%temperature)) then
-                        T0 = prob%reactants(1)%temperature%values(1)
+                        T0 = convert_units_to_si(prob%reactants(1)%temperature%values(1), prob%reactants(1)%temperature%units)
                     else
                         call abort("Temperature not supplied for shock problem")
                     end if
