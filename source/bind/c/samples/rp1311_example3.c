@@ -2,7 +2,8 @@
 #include "cea.h"
 
 #define LEN(x)  (sizeof(x) / sizeof((x)[0]))
-#define BAR     10000.00
+#define BAR     1.00
+#define R       8314.51
 
 int main(void) {
 
@@ -65,7 +66,7 @@ int main(void) {
 
     printf(
         "%12s %12s %15s %15s %15s \n",
-        "P (Pa)", "O/F Ratio", "T (K)", "H (J/kg)", "Cp (J/kg-K)"
+        "P (bar)", "O/F Ratio", "T (K)", "H (J/kg)", "Cp (J/kg-K)"
     );
 
     cea_real weights[LEN(reactants)];
@@ -76,7 +77,7 @@ int main(void) {
 
     for (int ip=0; ip < LEN(pressures); ++ip) {
 
-        cea_eqsolver_solve(solver, CEA_HP, enthalpy, pressures[ip], weights, soln);
+        cea_eqsolver_solve(solver, CEA_HP, enthalpy / R, pressures[ip], weights, soln);
 
         cea_real temperature, heat_capacity;
         cea_eqsolution_get_property(soln, CEA_TEMPERATURE, &temperature);
