@@ -60,6 +60,9 @@ int main(void) {
     cea_eqsolver_create_with_reactants(&solver, prod, reac);
 
     // Solution
+    cea_eqpartials partials;
+    cea_eqpartials_create(&partials, solver);
+
     cea_eqsolution soln;
     cea_eqsolution_create(&soln, solver);
 
@@ -76,7 +79,7 @@ int main(void) {
 
     for (int ip=0; ip < LEN(pressures); ++ip) {
 
-        cea_eqsolver_solve(solver, CEA_HP, enthalpy, pressures[ip], weights, soln);
+        cea_eqsolver_solve_with_partials(solver, CEA_HP, enthalpy, pressures[ip], weights, soln, partials);
 
         cea_real temperature, heat_capacity;
         cea_eqsolution_get_property(soln, CEA_TEMPERATURE, &temperature);
@@ -89,6 +92,7 @@ int main(void) {
 
     }
 
+    cea_eqpartials_destroy(&partials);
     cea_eqsolution_destroy(&soln);
     cea_eqsolver_destroy(&solver);
     cea_mixture_destroy(&prod);

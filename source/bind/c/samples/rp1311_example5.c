@@ -49,6 +49,9 @@ int main(void)
   cea_eqsolver solver;
   cea_eqsolver_create_with_reactants(&solver, prod, reac);
 
+  cea_eqpartials partials;
+  cea_eqpartials_create(&partials, solver);
+
   cea_eqsolution soln;
   cea_eqsolution_create(&soln, solver);
 
@@ -59,7 +62,7 @@ int main(void)
   printf("%12s %12s %12s %12s\n", "P(bar)", "T(K)", "Gamma_s", "Cp(cal/g-K)");
   for (int i = 0; i < LEN(pressures); ++i)
   {
-    cea_eqsolver_solve(solver, CEA_HP, h0 / 8314.51, pressures[i], reactant_weights, soln);
+    cea_eqsolver_solve_with_partials(solver, CEA_HP, h0 / 8314.51, pressures[i], reactant_weights, soln, partials);
     cea_real temperature, gamma_s, cp_eq;
     cea_eqsolution_get_property(soln, CEA_TEMPERATURE, &temperature);
     cea_eqsolution_get_property(soln, CEA_GAMMA_S, &gamma_s);
@@ -68,6 +71,7 @@ int main(void)
     printf("%12.6f %12.3f %12.5f %12.5f\n", pressures[i], temperature, gamma_s, cp_eq);
   }
 
+  cea_eqpartials_destroy(&partials);
   cea_eqsolution_destroy(&soln);
   cea_eqsolver_destroy(&solver);
   cea_mixture_destroy(&prod);
